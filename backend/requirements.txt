@@ -1,0 +1,37 @@
+# FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Environment and configuration
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Azure services
+azure-ai-openai==1.0.0
+azure-storage-blob==12.19.0
+azure-identity==1.15.0
+
+# Redis and vector operations
+redis==5.0.1
+numpy==1.24.3
+
+# HTTP client
+httpx==0.25.2
+requests==2.31.0
+
+# Utilities
+python-dateutil==2.8.2
+uuid==1.30
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0 

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Ticket - ProyectoSoc</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>ProyectoSoc</h1>
+            <nav class="nav">
+                <a href="index.html">Tickets</a>
+                <a href="create-ticket.html">Nuevo Ticket</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Detalle del Ticket</h2>
+                <a href="index.html" class="btn btn-secondary">Volver</a>
+            </div>
+
+            <div id="loading" class="loading">
+                Cargando ticket...
+            </div>
+
+            <div id="error" class="error hidden">
+                Error al cargar ticket
+            </div>
+
+            <div id="ticketDetail" class="ticket-detail hidden">
+                <div class="ticket-header">
+                    <div class="ticket-id">
+                        <span class="label">ID:</span>
+                        <span id="ticketId" class="value"></span>
+                    </div>
+                    <div class="ticket-status">
+                        <span class="label">Estado:</span>
+                        <span id="ticketStatus" class="status-badge"></span>
+                    </div>
+                </div>
+
+                <div class="ticket-content">
+                    <div class="ticket-section">
+                        <h3>Información General</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Título:</span>
+                                <span id="ticketTitle" class="value"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Prioridad:</span>
+                                <span id="ticketPriority" class="value"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Categoría:</span>
+                                <span id="ticketCategory" class="value"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Fecha Creación:</span>
+                                <span id="ticketCreated" class="value"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Última Actualización:</span>
+                                <span id="ticketUpdated" class="value"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ticket-section">
+                        <h3>Descripción</h3>
+                        <div id="ticketDescription" class="description"></div>
+                    </div>
+
+                    <div class="ticket-section">
+                        <h3>Archivos Adjuntos</h3>
+                        <div id="ticketAttachments" class="attachments">
+                            <p class="no-attachments">No hay archivos adjuntos</p>
+                        </div>
+                    </div>
+
+                    <div class="ticket-section">
+                        <h3>Historial</h3>
+                        <div id="ticketHistory" class="history">
+                            <p class="no-history">No hay historial disponible</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ticket-actions">
+                    <button id="editTicket" class="btn btn-primary">Editar</button>
+                    <button id="changeStatus" class="btn btn-secondary">Cambiar Estado</button>
+                    <button id="deleteTicket" class="btn btn-danger">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/ticket-detail.js"></script>
+</body>
+</html> 

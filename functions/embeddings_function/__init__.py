@@ -1,0 +1,1 @@
+"""Embeddings function module init file.""" 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Ticket - ProyectoSoc</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>ProyectoSoc</h1>
+            <nav class="nav">
+                <a href="index.html">Tickets</a>
+                <a href="create-ticket.html" class="active">Nuevo Ticket</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Crear Nuevo Ticket</h2>
+                <a href="index.html" class="btn btn-secondary">Volver</a>
+            </div>
+
+            <form id="createTicketForm" class="ticket-form">
+                <div class="form-group">
+                    <label for="title">Título *</label>
+                    <input type="text" id="title" name="title" required class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Descripción *</label>
+                    <textarea id="description" name="description" rows="5" required class="form-textarea"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="priority">Prioridad</label>
+                    <select id="priority" name="priority" class="form-select">
+                        <option value="baja">Baja</option>
+                        <option value="media" selected>Media</option>
+                        <option value="alta">Alta</option>
+                        <option value="crítica">Crítica</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Categoría</label>
+                    <select id="category" name="category" class="form-select">
+                        <option value="soporte">Soporte Técnico</option>
+                        <option value="bug">Bug/Error</option>
+                        <option value="feature">Nueva Funcionalidad</option>
+                        <option value="consulta">Consulta</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="attachments">Archivos Adjuntos</label>
+                    <input type="file" id="attachments" name="attachments" multiple class="form-file">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Crear Ticket</button>
+                    <button type="button" onclick="window.location.href='index.html'" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </form>
+
+            <div id="loading" class="loading hidden">
+                Creando ticket...
+            </div>
+
+            <div id="error" class="error hidden">
+                Error al crear ticket
+            </div>
+
+            <div id="success" class="success hidden">
+                Ticket creado exitosamente
+            </div>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/create-ticket.js"></script>
+</body>
+</html> 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProyectoSoc - Gestión de Tickets</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>ProyectoSoc</h1>
+            <nav class="nav">
+                <a href="index.html" class="active">Tickets</a>
+                <a href="create-ticket.html">Nuevo Ticket</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Lista de Tickets</h2>
+                <button class="btn btn-primary" onclick="window.location.href='create-ticket.html'">
+                    Crear Ticket
+                </button>
+            </div>
+
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="Buscar tickets..." class="search-input">
+                <select id="statusFilter" class="filter-select">
+                    <option value="">Todos los estados</option>
+                    <option value="abierto">Abierto</option>
+                    <option value="en_proceso">En Proceso</option>
+                    <option value="cerrado">Cerrado</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table class="tickets-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Título</th>
+                            <th>Estado</th>
+                            <th>Fecha Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketsTableBody">
+                        <!-- Tickets se cargan dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                Cargando tickets...
+            </div>
+
+            <div id="error" class="error hidden">
+                Error al cargar tickets
+            </div>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/tickets.js"></script>
+</body>
+</html> 
