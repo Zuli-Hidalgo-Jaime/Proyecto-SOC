@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     AZURE_OPENAI_API_KEY: str = ""
     AZURE_REDIS_CONNECTION_STRING: str = ""
     AZURE_STORAGE_CONNECTION_STRING: str = ""
+    SECRET_KEY: str = ""
     # TODO: Add more settings as needed
 
     class Config:

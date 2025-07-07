@@ -7,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from config.settings import get_settings
-from database.connection import init_db
-from routes import tickets
+from backend.config.settings import get_settings
+from backend.database.connection import init_db
+from backend.routes import tickets
 
 # Initialize settings
 settings = get_settings()
@@ -59,6 +59,7 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
 
+'''
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Global HTTP exception handler"""
@@ -66,7 +67,7 @@ async def http_exception_handler(request, exc):
         status_code=exc.status_code,
         content={"detail": exc.detail}
     )
-
+'''
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
