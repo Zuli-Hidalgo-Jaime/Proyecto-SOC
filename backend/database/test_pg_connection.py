@@ -1,8 +1,10 @@
 import asyncio
+import pytest
 from backend.config.settings import get_settings
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
+@pytest.mark.asyncio  
 async def test_connection():
     db_url = get_settings().DATABASE_URL
     print(f"Intentando conectar a: {db_url}")

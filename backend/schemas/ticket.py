@@ -11,5 +11,6 @@ class TicketCreate(BaseModel):
 class TicketOut(TicketCreate):
     id: int
 
-    class Config:
-        orm_mode = True
+class Config:
+    from_attributes = True
+

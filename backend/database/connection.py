@@ -17,7 +17,7 @@ async def init_db():
     # TODO: Implement database initialization logic
     pass
 
-# ---- NUEVO: Dependency para FastAPI ----
+# ---- Dependency para FastAPI ----
 async def get_session() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
