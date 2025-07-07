@@ -10,6 +10,9 @@ import uvicorn
 from backend.config.settings import get_settings
 from backend.database.connection import init_db
 from backend.routes import tickets
+from backend.logging_config import setup_logging
+
+setup_logging()
 
 # Initialize settings
 settings = get_settings()
