@@ -21,11 +21,13 @@ azure-storage-blob==12.19.0
 azure-identity==1.15.0
 
 # Redis and vector operations
-redis==5.0.1
+redis~=5.0
+redisvl~=0.4
 numpy==1.24.3
 
 # HTTP client
 httpx==0.25.2
+
 requests==2.31.0
 
 # Utilities

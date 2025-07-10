@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from backend.auth.basic_auth import verify_basic_auth
 from backend.database.models import Ticket
 from backend.database.connection import get_session
 
@@ -41,7 +42,7 @@ from backend.schemas.ticket import TicketCreate, TicketOut
 
 # Crear ticket
 @router.post("/", response_model=TicketOut, summary="Crear ticket")
-async def create_ticket(ticket: TicketCreate, session: AsyncSession = Depends(get_session)):
+async def create_ticket(ticket: TicketCreate, session: AsyncSession = Depends(get_session), auth=Depends(verify_basic_auth)):
     new_ticket = Ticket(
         TicketNumber=ticket.TicketNumber,
         ShortDescription=ticket.ShortDescription,

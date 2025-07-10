@@ -4,7 +4,7 @@ Database connection setup for SQLAlchemy and PostgreSQL.
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from backend.config.settings import get_settings
-from contextlib import asynccontextmanager  # <-- Añade esto
+from contextlib import asynccontextmanager 
 
 # TODO: Use asyncpg for async PostgreSQL
 DATABASE_URL = get_settings().DATABASE_URL

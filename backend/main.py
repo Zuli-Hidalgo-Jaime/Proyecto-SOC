@@ -5,12 +5,16 @@ Main FastAPI application for ProyectoSoc ticket management system
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import Depends
+
 import uvicorn
 
 from backend.config.settings import get_settings
 from backend.database.connection import init_db
 from backend.routes import tickets
 from backend.logging_config import setup_logging
+from backend.auth.basic_auth import verify_basic_auth
+from backend.routes import embeddings
 
 setup_logging()
 
@@ -26,6 +30,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +42,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
+app.include_router(embeddings.router)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -61,6 +68,10 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+@app.get("/protected")
+def protected_route(username: str = Depends(verify_basic_auth)):
+    return {"message": f"¡Hola {username}! Tienes acceso protegido."}
 
 '''
 @app.exception_handler(HTTPException)
