@@ -5,7 +5,7 @@ from backend.utils.redis_client import add_embedding, knn_search, get_vector
 
 router = APIRouter(prefix="/api/embeddings")
 
-# 📦 Modelo para guardar embeddings
+# Modelo para guardar embeddings
 class EmbeddingIn(BaseModel):
     vector: List[float]
     ticket_id: Optional[int] = None
@@ -24,7 +24,7 @@ def save_embedding(emb_id: str, payload: EmbeddingIn):
     )
     return {"msg": "Embedding guardado correctamente", "id": emb_id}
 
-# 📦 Modelo para búsqueda KNN
+# Modelo para búsqueda KNN
 class SearchIn(BaseModel):
     vector: List[float]
     k: int = 5

@@ -41,7 +41,7 @@ def _ensure_index():
 
 _ensure_index()   # ← se ejecuta al importar el módulo
 
-### Almacenar ############################################################
+# Almacenar
 
 def _to_float32_bytes(v: List[float]) -> bytes:
     return np.array(v, dtype=np.float32).tobytes()
@@ -58,7 +58,7 @@ def add_embedding(key: str, vector: List[float], **meta):
         payload[k] = v
     r.hset(redis_key, mapping=payload)
 
-### Búsqueda #############################################################
+# Búsqueda #
 
 def knn_search(query: List[float], k: int = 5, **filters):
     """
