@@ -1,21 +1,20 @@
-"""
-Settings module for environment and application configuration.
-"""
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables or .env file."""
-    DATABASE_URL: str
-    AZURE_OPENAI_ENDPOINT: str = ""
-    AZURE_OPENAI_API_KEY: str = ""
-    AZURE_REDIS_CONNECTION_STRING: str = ""
-    AZURE_STORAGE_CONNECTION_STRING: str = ""
-    SECRET_KEY: str = ""
-    # TODO: Add more settings as needed
+    # original en mayúsculas
+    DATABASE_URL: str = Field(..., env="DATABASE_URL")
+    # alias minúscula (no rompe nada)
+    database_url: str | None = Field(None, alias="DATABASE_URL")
 
-    class Config:
-        env_file = ".env"
+    AZURE_OPENAI_ENDPOINT: str
+    AZURE_OPENAI_API_KEY: str
+    AZURE_OPENAI_API_VERSION: str | None = None
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT: str | None = None
+
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
 def get_settings() -> Settings:
-    """Return application settings instance."""
-    return Settings() 
+    return Settings()
+
+

@@ -1,15 +1,14 @@
 # tests/backend/test_redis_client.py
 import pytest
-from backend.utils.redis_client import set_key, get_key, set_vector, get_vector
+from backend.utils.redis_client import add_embedding, get_vector
 
-def test_set_and_get_key():
-    set_key("saludo", "hola mundo")
-    resultado = get_key("saludo")
-    assert resultado == "hola mundo"
+def test_add_and_get_scalar_vector():
+    # ----- escalar (1-dim) -----
+    add_embedding("unit:key1", [42.0])
+    assert get_vector("unit:key1") == pytest.approx([42.0], rel=1e-6)
 
-def test_set_and_get_vector():
-    vector_demo = [1.1, 2.2, 3.3]
-    set_vector("mi_vector", vector_demo)
-    resultado = get_vector("mi_vector")
-    assert resultado == vector_demo
+    # ----- vector completo -----
+    demo_vec = [1.1, 2.2, 3.3]
+    add_embedding("unit:key2", demo_vec)
+    assert get_vector("unit:key2") == pytest.approx(demo_vec, rel=1e-6)
 
