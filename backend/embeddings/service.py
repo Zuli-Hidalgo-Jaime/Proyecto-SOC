@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from openai import AsyncAzureOpenAI
 from backend.utils.redis_client import add_embedding
 
-load_dotenv()
+load_dotenv(override=True) 
 
 DEPLOY     = os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"]
 ENDPOINT   = os.environ["AZURE_OPENAI_ENDPOINT"]
