@@ -15,6 +15,7 @@ from backend.routes import tickets
 from backend.logging_config import setup_logging
 from backend.auth.basic_auth import verify_basic_auth
 from backend.routes import embeddings
+from backend.routes.search import router as search_router
 
 setup_logging()
 
@@ -43,7 +44,7 @@ app.add_middleware(
 # Include routers
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
 app.include_router(embeddings.router)
-
+app.include_router(search_router)
 
 @app.on_event("startup")
 async def startup_event():
