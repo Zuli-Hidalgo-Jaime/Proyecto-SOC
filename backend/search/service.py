@@ -10,14 +10,18 @@ DEPLOY = os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"]
 def to_binary(vec: list[float]) -> bytes:
     return np.array(vec, dtype=np.float32).tobytes()
 
-async def knn_search(text: str, k: int = 5, status: str = "Nuevo"):
+async def knn_search(text: str, k: int = 5, **filters):
     # 1. Embedding del texto (no se guarda)
     resp = await client.embeddings.create(model=DEPLOY, input=text)
     qvec = resp.data[0].embedding
 
     # 2. Construir la consulta RediSearch
-    filter_str = f"@status:{{{status}}}" if status else ""
-    query_str  = f"{filter_str}=>[KNN {k} @vector $V AS score]"
+    if filters:
+        filter_str = " ".join(f"@{k}:{{{v}}}" for k, v in filters.items())
+    else:
+        filter_str = "*"
+
+    query_str = f"{filter_str}=>[KNN {k} @vector $V AS score]"
 
     params = {"V": to_binary(qvec)}           # parámetros binarios
     q = (
