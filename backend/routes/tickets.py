@@ -5,6 +5,8 @@ from sqlalchemy.future import select
 from backend.auth.basic_auth import verify_basic_auth
 from backend.database.models import Ticket
 from backend.database.connection import get_session
+from backend.embeddings.service import embed_and_store
+from backend.schemas.ticket import TicketCreate, TicketOut
 
 import logging
 logger = logging.getLogger(__name__)
@@ -38,20 +40,30 @@ async def get_ticket(ticket_id: int, session: AsyncSession = Depends(get_session
         "Status": ticket.Status
     }
 
-from backend.schemas.ticket import TicketCreate, TicketOut
-
 # Crear ticket
 @router.post("/", response_model=TicketOut, summary="Crear ticket")
 async def create_ticket(ticket: TicketCreate, session: AsyncSession = Depends(get_session), auth=Depends(verify_basic_auth)):
     new_ticket = Ticket(
         TicketNumber=ticket.TicketNumber,
         ShortDescription=ticket.ShortDescription,
-        CreatedBy=ticket.CreatedBy, 
+        CreatedBy=ticket.CreatedBy,
         Status=ticket.Status
     )
     session.add(new_ticket)
     await session.commit()
     await session.refresh(new_ticket)
+
+    # 2️⃣ generar y guardar embedding (clave: ticket:<id>)
+    try:
+        await embed_and_store(
+            key=f"ticket:{new_ticket.id}",
+            text=new_ticket.ShortDescription,
+            ticket_id=new_ticket.id,
+            status=new_ticket.Status
+        )
+    except Exception as e:
+        logger.error("Embedding error: %s", e)
+
     return new_ticket
 
 # Actualizar ticket

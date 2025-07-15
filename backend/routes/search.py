@@ -1,5 +1,9 @@
 from typing import Optional
-from fastapi import APIRouter, Query
+
+from fastapi import APIRouter, Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.database.connection import get_session   # 💾 inyecta sesión
 from backend.search.service import knn_search
 
 router = APIRouter()
@@ -8,11 +12,14 @@ router = APIRouter()
 async def semantic_search(
     q: str = Query(..., min_length=3, description="Texto a buscar"),
     k: int = 5,
-    status: Optional[str] = None          # 👈 nuevo parámetro
+    status: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),      # 👈 pasa sesión
 ):
     """
-    Embebe `q`, consulta RediSearch y devuelve los `k` vecinos.
+    Embebe *q*, consulta RediSearch y devuelve los *k* vecinos más
+    cercanos.  Si se indica `status`, filtra por esa etiqueta.
     """
-    filters = {"status": status} if status else {}   # ← sólo si lo pasan
-    hits = await knn_search(q, k, **filters)
+    filters = {"status": status} if status else {}
+    hits = await knn_search(q, k, session=session, **filters)
     return hits
+
