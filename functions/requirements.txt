@@ -5,3 +5,4 @@ requests
 httpx
 python-dotenv
 # TODO: Agrega openai, twilio, elevenlabs si se requiere 
+python -m pip install twilio python-dotenv

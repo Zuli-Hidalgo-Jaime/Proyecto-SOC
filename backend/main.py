@@ -1,11 +1,14 @@
 """
 Main FastAPI application for ProyectoSoc ticket management system
 """
-
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi import Depends
+from backend.routes.twilio_voice import router as twilio_router
+from backend.routes.audio import router as audio_router
 
 import uvicorn
 
@@ -17,6 +20,10 @@ from backend.auth.basic_auth import verify_basic_auth
 from backend.routes import embeddings
 from backend.routes.search import router as search_router
 
+#Frontend
+from fastapi.staticfiles import StaticFiles
+
+load_dotenv()
 setup_logging()
 
 # Initialize settings
@@ -30,6 +37,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
 
 # Configure CORS
@@ -45,6 +54,8 @@ app.add_middleware(
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
 app.include_router(embeddings.router)
 app.include_router(search_router)
+app.include_router(twilio_router)
+app.include_router(audio_router)
 
 @app.on_event("startup")
 async def startup_event():
