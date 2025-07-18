@@ -1,86 +1,149 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Ticket - ProyectoSoc</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <title>Crear Ticket – ProyectoSoc</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Mini estilos rápidos estilo ServiceNow */
+    .form-section { display: flex; flex-wrap: wrap; gap: 2rem; }
+    .form-col     { flex: 1 1 320px; min-width: 280px; }
+    .field-label  { font-weight: 600; margin: .4rem 0 .2rem; display:block; }
+    .input, select, textarea { width: 100%; padding: .5rem; margin-bottom: .4rem; }
+    .readonly { background:#eee; }
+    .form-actions { margin-top: 1rem; display:flex; gap:1rem; }
+    .hidden { display:none; }
+    .success { color: green; margin-top: .8rem; }
+    .error   { color: red;   margin-top: .8rem; }
+  </style>
 </head>
+
 <body>
-    <header class="header">
-        <div class="container">
-            <h1>ProyectoSoc</h1>
-            <nav class="nav">
-                <a href="index.html">Tickets</a>
-                <a href="create-ticket.html" class="active">Nuevo Ticket</a>
-            </nav>
+  <header class="header">
+    <div class="container">
+      <h1>ProyectoSoc</h1>
+      <nav class="nav">
+        <a href="index.html">Tickets</a>
+        <a href="create-ticket.html" class="active">Nuevo Ticket</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container">
+      <h2>Crear Nuevo Ticket</h2>
+
+      <!-- ===== FORMULARIO ===== -->
+      <form id="createTicketForm" class="ticket-form">
+
+        <div class="form-section">
+          <!-- ── Columna 1 ───────────────────────── -->
+          <div class="form-col">
+            <label class="field-label">Ticket Number</label>
+            <input type="text" name="ticket_number" id="ticketNumber" class="input readonly" readonly value="AUTO">
+
+            <label class="field-label">Short Description *</label>
+            <input type="text" name="short_description" id="shortDescription" class="input" required>
+
+            <label class="field-label">Created By *</label>
+            <input type="text" name="created_by" id="createdBy" class="input" required>
+
+            <label class="field-label">Company</label>
+            <input type="text" name="company" id="company" class="input">
+
+            <label class="field-label">Reported By</label>
+            <input type="text" name="reported_by" id="reportedBy" class="input">
+
+            <label class="field-label">1st Category *</label>
+            <select name="category" id="category" class="input" required>
+              <option value="">Seleccione</option>
+              <option value="soporte">Soporte Técnico</option>
+              <option value="bug">Bug / Error</option>
+              <option value="feature">Nueva Funcionalidad</option>
+              <option value="consulta">Consulta</option>
+            </select>
+
+            <label class="field-label">1st Subcategory</label>
+            <input type="text" name="subcategory" id="subcategory" class="input">
+          </div>
+
+          <!-- ── Columna 2 ───────────────────────── -->
+          <div class="form-col">
+            <label class="field-label">Severity *</label>
+            <select name="severity" id="severity" class="input" required>
+              <option value="">Seleccione</option>
+              <option value="1-critica">1 - Crítica</option>
+              <option value="2-alta">2 - Alta</option>
+              <option value="3-media">3 - Media</option>
+              <option value="4-baja">4 - Baja</option>
+            </select>
+
+            <label class="field-label">Folio</label>
+            <input type="text" name="folio" id="folio" class="input readonly" readonly value="AUTO">
+
+            <label class="field-label">Description *</label>
+            <textarea name="description" id="description" rows="4" class="input" required></textarea>
+
+            <label class="field-label">Channel</label>
+            <select name="channel" id="channel" class="input">
+              <option value="Web">Web</option>
+              <option value="Correo">Correo</option>
+              <option value="Voz">Voz</option>
+              <option value="Otro">Otro</option>
+            </select>
+
+            <label class="field-label">Workflow</label>
+            <input type="text" name="workflow" id="workflow" class="input">
+
+            <label class="field-label">Impact</label>
+            <select name="impact" id="impact" class="input">
+              <option value="">Seleccione</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+
+            <label class="field-label">Urgency</label>
+            <select name="urgency" id="urgency" class="input">
+              <option value="">Seleccione</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+
+            <label class="field-label">Priority</label>
+            <select name="priority" id="priority" class="input">
+              <option value="">Seleccione</option>
+              <option value="baja">Baja</option>
+              <option value="media">Media</option>
+              <option value="alta">Alta</option>
+              <option value="critica">Crítica</option>
+            </select>
+
+            <label class="field-label">Assignment Group</label>
+            <input type="text" name="assignment_group" id="assignmentGroup" class="input">
+
+            <label class="field-label">Assigned To</label>
+            <input type="text" name="assigned_to" id="assignedTo" class="input">
+          </div>
         </div>
-    </header>
 
-    <main class="main">
-        <div class="container">
-            <div class="page-header">
-                <h2>Crear Nuevo Ticket</h2>
-                <a href="index.html" class="btn btn-secondary">Volver</a>
-            </div>
-
-            <form id="createTicketForm" class="ticket-form">
-                <div class="form-group">
-                    <label for="title">Título *</label>
-                    <input type="text" id="title" name="title" required class="form-input">
-                </div>
-
-                <div class="form-group">
-                    <label for="description">Descripción *</label>
-                    <textarea id="description" name="description" rows="5" required class="form-textarea"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="priority">Prioridad</label>
-                    <select id="priority" name="priority" class="form-select">
-                        <option value="baja">Baja</option>
-                        <option value="media" selected>Media</option>
-                        <option value="alta">Alta</option>
-                        <option value="crítica">Crítica</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="category">Categoría</label>
-                    <select id="category" name="category" class="form-select">
-                        <option value="soporte">Soporte Técnico</option>
-                        <option value="bug">Bug/Error</option>
-                        <option value="feature">Nueva Funcionalidad</option>
-                        <option value="consulta">Consulta</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="attachments">Archivos Adjuntos</label>
-                    <input type="file" id="attachments" name="attachments" multiple class="form-file">
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Crear Ticket</button>
-                    <button type="button" onclick="window.location.href='index.html'" class="btn btn-secondary">Cancelar</button>
-                </div>
-            </form>
-
-            <div id="loading" class="loading hidden">
-                Creando ticket...
-            </div>
-
-            <div id="error" class="error hidden">
-                Error al crear ticket
-            </div>
-
-            <div id="success" class="success hidden">
-                Ticket creado exitosamente
-            </div>
+        <!-- ── Acciones y feedback ───────────────── -->
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Crear Ticket</button>
+          <button type="button" class="btn btn-secondary" onclick="location.href='index.html'">Cancelar</button>
         </div>
-    </main>
 
-    <script src="js/config.js"></script>
-    <script src="js/create-ticket.js"></script>
+        <div id="loading"  class="loading hidden">Creando ticket…</div>
+        <div id="success"  class="success hidden">Ticket creado exitosamente</div>
+        <div id="error"    class="error hidden">Error al crear ticket</div>
+      </form>
+    </div>
+  </main>
+
+  <!-- JS -->
+  <script src="js/config.js"></script>
+  <script src="js/create-ticket.js"></script>
 </body>
-</html> 
+</html>
+

@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
+app.include_router(tickets.router)  # <--- sin prefix ni tags aquí
 app.include_router(embeddings.router)
 app.include_router(search_router)
 app.include_router(twilio_router)
