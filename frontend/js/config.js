@@ -1,53 +1,26 @@
 /**
- * Configuration file for the frontend application
- * Contains API endpoints and global settings
+ * Global configuration for the frontend
+ * – Ajusta API_BASE_URL si cambias de host/puerto
  */
-
 const CONFIG = {
-    // API base URL - change this for production
-    API_BASE_URL: 'http://localhost:8000',
-    
-    // API endpoints
+    API_BASE_URL: "http://localhost:8000",
+  
     ENDPOINTS: {
-        TICKETS: '/api/tickets',
-        TICKET_BY_ID: (id) => `/api/tickets/${id}`,
-        CREATE_TICKET: '/api/tickets',
-        UPDATE_TICKET: (id) => `/api/tickets/${id}`,
-        DELETE_TICKET: (id) => `/api/tickets/${id}`,
+      TICKETS      : "/api/tickets/",                    // barra final
+      TICKET_BY_ID : id => `/api/tickets/${id}`,
+      CREATE_TICKET: "/api/tickets/",
+      UPDATE_TICKET: id => `/api/tickets/${id}`,
+      DELETE_TICKET: id => `/api/tickets/${id}`
     },
-    
-    // Ticket status options
-    STATUS_OPTIONS: {
-        ABIERTO: 'abierto',
-        EN_PROCESO: 'en_proceso',
-        CERRADO: 'cerrado'
-    },
-    
-    // Priority options
-    PRIORITY_OPTIONS: {
-        BAJA: 'baja',
-        MEDIA: 'media',
-        ALTA: 'alta',
-        CRITICA: 'crítica'
-    },
-    
-    // Category options
-    CATEGORY_OPTIONS: {
-        SOPORTE: 'soporte',
-        BUG: 'bug',
-        FEATURE: 'feature',
-        CONSULTA: 'consulta'
-    },
-    
-    // UI settings
+  
+    STATUS_OPTIONS: { ABIERTO: "Nuevo", EN_PROCESO: "En proceso", CERRADO: "Cerrado" },
+  
     UI: {
-        ITEMS_PER_PAGE: 20,
-        SEARCH_DELAY: 300, // milliseconds
-        AUTO_REFRESH_INTERVAL: 30000 // 30 seconds
+      SEARCH_DELAY          : 400,
+      AUTO_REFRESH_INTERVAL : 30_000   // 30 s
     }
-};
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = CONFIG;
-} 
+  };
+  
+  // Export para tests Node
+  if (typeof module !== "undefined" && module.exports) module.exports = CONFIG;
+  

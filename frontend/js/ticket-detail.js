@@ -1,226 +1,223 @@
 /**
- * Ticket detail functionality
- * Handles loading and displaying individual ticket details
+ * Ticket detail – maneja la carga, visualización, cambio de estado y borrado
+ * Requiere los siguientes IDs en el HTML:
+ *  'ticketDetail', 'loading', 'error',
+ *  'ticketId', 'ticketTitle', 'ticketDescription',
+ *  'ticketPriority', 'ticketCategory',
+ *  'ticketCreated', 'ticketUpdated', 'ticketStatus',
+ *  y botones opcionales con IDs: 'editTicket', 'changeStatus', 'deleteTicket'
  */
 
 class TicketDetailManager {
     constructor() {
-        this.ticketId = this.getTicketIdFromUrl();
-        this.ticket = null;
-        this.init();
+      this.ticketId = new URLSearchParams(window.location.search).get("id");
+      if (this.ticketId) {
+        this.loadTicket();
+        this.bindEvents();
+      } else {
+        this.show("error", true);
+      }
     }
-
-    init() {
-        if (this.ticketId) {
-            this.loadTicket();
-            this.setupEventListeners();
-        } else {
-            this.showError(true);
-        }
-    }
-
-    getTicketIdFromUrl() {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get('id');
-    }
-
+  
+    /* ────────────────────────────────────────────── */
+    /* 1. Cargar ticket                              */
+    /* ────────────────────────────────────────────── */
     async loadTicket() {
-        try {
-            this.showLoading(true);
-            const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKET_BY_ID(this.ticketId)}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            this.ticket = await response.json();
-            this.renderTicket();
-            this.showLoading(false);
-        } catch (error) {
-            console.error('Error loading ticket:', error);
-            this.showError(true);
-            this.showLoading(false);
-        }
-    }
-
-    renderTicket() {
-        if (!this.ticket) return;
-
-        // Update page title
-        document.title = `Ticket #${this.ticket.id} - ${this.ticket.title} - ProyectoSoc`;
-
-        // Fill ticket information
-        document.getElementById('ticketId').textContent = this.ticket.id;
-        document.getElementById('ticketTitle').textContent = this.ticket.title;
-        document.getElementById('ticketDescription').textContent = this.ticket.description;
-        document.getElementById('ticketPriority').textContent = this.getPriorityDisplayName(this.ticket.priority);
-        document.getElementById('ticketCategory').textContent = this.getCategoryDisplayName(this.ticket.category);
-        document.getElementById('ticketCreated').textContent = this.formatDate(this.ticket.created_at);
-        document.getElementById('ticketUpdated').textContent = this.formatDate(this.ticket.updated_at);
-
-        // Update status badge
-        const statusElement = document.getElementById('ticketStatus');
-        statusElement.textContent = this.getStatusDisplayName(this.ticket.status);
-        statusElement.className = `status-badge status-${this.ticket.status}`;
-
-        // Show ticket detail section
-        document.getElementById('ticketDetail').classList.remove('hidden');
-    }
-
-    setupEventListeners() {
-        // Edit button
-        const editBtn = document.getElementById('editTicket');
-        if (editBtn) {
-            editBtn.addEventListener('click', () => {
-                // TODO: Implement edit functionality
-                alert('Funcionalidad de edición en desarrollo');
-            });
-        }
-
-        // Change status button
-        const changeStatusBtn = document.getElementById('changeStatus');
-        if (changeStatusBtn) {
-            changeStatusBtn.addEventListener('click', () => {
-                this.showStatusChangeDialog();
-            });
-        }
-
-        // Delete button
-        const deleteBtn = document.getElementById('deleteTicket');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => {
-                this.confirmDelete();
-            });
-        }
-    }
-
-    showStatusChangeDialog() {
-        const newStatus = prompt(
-            'Selecciona el nuevo estado:\n1. Abierto\n2. En Proceso\n3. Cerrado',
-            '1'
+      try {
+        this.show("loading", true);
+        const res = await fetch(
+          `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKET_BY_ID(this.ticketId)}`
         );
-
-        if (newStatus) {
-            const statusMap = {
-                '1': CONFIG.STATUS_OPTIONS.ABIERTO,
-                '2': CONFIG.STATUS_OPTIONS.EN_PROCESO,
-                '3': CONFIG.STATUS_OPTIONS.CERRADO
-            };
-
-            const selectedStatus = statusMap[newStatus];
-            if (selectedStatus) {
-                this.updateTicketStatus(selectedStatus);
-            }
-        }
+        if (!res.ok) throw new Error(await res.text());
+        this.ticket = await res.json();
+        this.render();
+      } catch (err) {
+        console.error("Error loading ticket:", err);
+        this.show("error", true);
+      } finally {
+        this.show("loading", false);
+      }
     }
-
+  
+    /* ────────────────────────────────────────────── */
+    /* 2. Renderizar datos                           */
+    /* ────────────────────────────────────────────── */
+    render() {
+      if (!this.ticket) return;
+      const t = this.ticket;
+  
+      document.title = `Ticket ${t.TicketNumber} – ProyectoSoc`;
+  
+      document.getElementById("ticketId").textContent          = t.TicketNumber;
+      document.getElementById("ticketTitle").textContent       = t.ShortDescription;
+      document.getElementById("ticketDescription").textContent = t.Description || "";
+      document.getElementById("ticketPriority").textContent    = t.Priority    || "";
+      document.getElementById("ticketCategory").textContent    = t.Category    || "";
+      document.getElementById("ticketCreated").textContent     = this.f(t.CreatedAt);
+      document.getElementById("ticketUpdated").textContent     = this.f(t.UpdatedAt);
+  
+      const badge = document.getElementById("ticketStatus");
+      badge.textContent = t.Status;
+      badge.className   = `status-badge status-${t.Status.toLowerCase()}`;
+  
+      this.show("ticketDetail", true);
+    }
+  
+    /* ────────────────────────────────────────────── */
+    /* 3. Eventos (editar, cambiar estado, borrar)   */
+    /* ────────────────────────────────────────────── */
+    bindEvents() {
+      document.getElementById("editTicket")?.addEventListener("click", () => this.showEditModal());
+      document.getElementById("changeStatus")?.addEventListener("click", () => this.showStatusDialog());
+      document.getElementById("deleteTicket")?.addEventListener("click", () => this.confirmDelete());
+    
+      // Edit Modal events
+      document.getElementById("closeEditModal")?.addEventListener("click", () => this.hideEditModal());
+      document.getElementById("cancelEdit")?.addEventListener("click", () => this.hideEditModal());
+      document.getElementById("editTicketForm")?.addEventListener("submit", (e) => {
+        e.preventDefault();
+        this.submitEdit();
+      });
+    }
+    
+    showEditModal() {
+      // Llena los campos del modal con los valores actuales
+      document.getElementById("editTitle").value        = this.ticket.ShortDescription || '';
+      document.getElementById("editDescription").value  = this.ticket.Description || '';
+      document.getElementById("editPriority").value     = this.ticket.Priority || '';
+      document.getElementById("editCategory").value     = this.ticket.Category || '';
+      document.getElementById("editAssignedTo").value   = this.ticket.AssignedTo || '';
+      document.getElementById("editModal").classList.remove("hidden");
+    }
+    
+    hideEditModal() {
+      document.getElementById("editModal").classList.add("hidden");
+    }
+    
+    async submitEdit() {
+      // Construye los campos editables + los requeridos en PascalCase
+      const body = {
+        TicketNumber    : this.ticket.TicketNumber,
+        Folio           : this.ticket.Folio,
+        ShortDescription: document.getElementById("editTitle").value,
+        Description     : document.getElementById("editDescription").value,
+        CreatedBy       : this.ticket.CreatedBy,              // << OBLIGATORIO
+        Company         : this.ticket.Company,
+        ReportedBy      : this.ticket.ReportedBy,
+        Category        : document.getElementById("editCategory").value,
+        Subcategory     : this.ticket.Subcategory,
+        Severity        : this.ticket.Severity,
+        Impact          : this.ticket.Impact,
+        Urgency         : this.ticket.Urgency,
+        Priority        : document.getElementById("editPriority").value,
+        Status          : this.ticket.Status, // No cambias status aquí
+        Workflow        : this.ticket.Workflow,
+        Channel         : this.ticket.Channel,
+        AssignmentGroup : this.ticket.AssignmentGroup,
+        AssignedTo      : document.getElementById("editAssignedTo").value,
+      };
+    
+      try {
+        const res = await fetch(
+          `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPDATE_TICKET(this.ticketId)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }
+        );
+        if (!res.ok) throw new Error(await res.text());
+        this.hideEditModal();
+        this.loadTicket(); // Refresca la vista
+        alert("Ticket actualizado exitosamente.");
+      } catch (err) {
+        console.error("Error al editar ticket:", err);
+        alert("Error al editar el ticket.");
+      }
+    }
+  
+    /* ---- Cambiar estado ------------------------- */
+    showStatusDialog() {
+      const opt = prompt("Nuevo estado:\n1. Nuevo\n2. En proceso\n3. Cerrado", "1");
+      const map = { "1": "Nuevo", "2": "En proceso", "3": "Cerrado" };
+      const status = map[opt];
+      if (status) this.updateTicketStatus(status);
+    }
+  
     async updateTicketStatus(newStatus) {
-        try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPDATE_TICKET(this.ticketId)}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...this.ticket,
-                    status: newStatus
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            // Reload ticket to show updated status
-            this.loadTicket();
-        } catch (error) {
-            console.error('Error updating ticket status:', error);
-            alert('Error al actualizar el estado del ticket');
+      try {
+        // El ticket que tienes probablemente tiene claves minúsculas
+        // Pero el backend espera PascalCase (exactamente igual al GET)
+        const t = this.ticket;
+        const body = {
+          TicketNumber:    t.TicketNumber,
+          Folio:           t.Folio,
+          ShortDescription:t.ShortDescription,
+          Description:     t.Description,
+          CreatedBy:       t.CreatedBy,
+          Company:         t.Company,
+          ReportedBy:      t.ReportedBy,
+          Category:        t.Category,
+          Subcategory:     t.Subcategory,
+          Severity:        t.Severity,
+          Impact:          t.Impact,
+          Urgency:         t.Urgency,
+          Priority:        t.Priority,
+          Status:          newStatus,                
+          Workflow:        t.Workflow,
+          Channel:         t.Channel,
+          AssignmentGroup: t.AssignmentGroup,
+          AssignedTo:      t.AssignedTo,
+          // No envíes created_at, updated_at, id
+        };
+    
+        const response = await fetch(
+          `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPDATE_TICKET(this.ticketId)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }
+        );
+    
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+    
+        this.loadTicket();
+      } catch (error) {
+        console.error('Error updating ticket status:', error);
+        alert('Error al actualizar el estado del ticket');
+      }
     }
-
+  
+    /* ---- Eliminar ticket ------------------------ */
     confirmDelete() {
-        const confirmed = confirm('¿Estás seguro de que quieres eliminar este ticket? Esta acción no se puede deshacer.');
-        
-        if (confirmed) {
-            this.deleteTicket();
-        }
+      if (confirm("¿Eliminar este ticket?")) this.deleteTicket();
     }
-
+  
     async deleteTicket() {
-        try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(this.ticketId)}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            alert('Ticket eliminado exitosamente');
-            window.location.href = 'index.html';
-        } catch (error) {
-            console.error('Error deleting ticket:', error);
-            alert('Error al eliminar el ticket');
-        }
+      try {
+        const res = await fetch(
+          `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(this.ticketId)}`,
+          { method: "DELETE" }
+        );
+        if (!res.ok) throw new Error(await res.text());
+        alert("Ticket eliminado");
+        location.href = "index.html";
+      } catch (e) {
+        console.error("Error deleting ticket:", e);
+        alert("Error al eliminar el ticket");
+      }
     }
-
-    showLoading(show) {
-        const loading = document.getElementById('loading');
-        const error = document.getElementById('error');
-        
-        if (loading) loading.classList.toggle('hidden', !show);
-        if (error) error.classList.toggle('hidden', true);
-    }
-
-    showError(show) {
-        const error = document.getElementById('error');
-        if (error) error.classList.toggle('hidden', !show);
-    }
-
-    getStatusDisplayName(status) {
-        const statusNames = {
-            'abierto': 'Abierto',
-            'en_proceso': 'En Proceso',
-            'cerrado': 'Cerrado'
-        };
-        return statusNames[status] || status;
-    }
-
-    getPriorityDisplayName(priority) {
-        const priorityNames = {
-            'baja': 'Baja',
-            'media': 'Media',
-            'alta': 'Alta',
-            'crítica': 'Crítica'
-        };
-        return priorityNames[priority] || priority;
-    }
-
-    getCategoryDisplayName(category) {
-        const categoryNames = {
-            'soporte': 'Soporte Técnico',
-            'bug': 'Bug/Error',
-            'feature': 'Nueva Funcionalidad',
-            'consulta': 'Consulta'
-        };
-        return categoryNames[category] || category;
-    }
-
-    formatDate(dateString) {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-}
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    new TicketDetailManager();
-}); 
+  
+    /* ────────────────────────────────────────────── */
+    /* 4. Utils                                      */
+    /* ────────────────────────────────────────────── */
+    show(id, v) { document.getElementById(id)?.classList.toggle("hidden", !v); }
+    f(d) { return d ? new Date(d).toLocaleString("es-MX") : ""; }
+  }
+  
+  /* init */
+  document.addEventListener("DOMContentLoaded", () => new TicketDetailManager());
+  

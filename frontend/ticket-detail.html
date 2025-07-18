@@ -100,7 +100,48 @@
         </div>
     </main>
 
+    <!-- ===== MODAL DE EDICIÓN DE TICKET ===== -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-content">
+            <span id="closeEditModal" class="close">&times;</span>
+            <h3>Editar Ticket</h3>
+            <form id="editTicketForm">
+                <label for="editTitle">Título</label>
+                <input type="text" id="editTitle" required />
+
+                <label for="editDescription">Descripción</label>
+                <textarea id="editDescription" rows="3"></textarea>
+
+                <label for="editPriority">Prioridad</label>
+                <select id="editPriority">
+                    <option value="">Seleccione</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="critica">Crítica</option>
+                </select>
+
+                <label for="editCategory">Categoría</label>
+                <select id="editCategory">
+                    <option value="">Seleccione</option>
+                    <option value="soporte">Soporte Técnico</option>
+                    <option value="bug">Bug/Error</option>
+                    <option value="feature">Nueva Funcionalidad</option>
+                    <option value="consulta">Consulta</option>
+                </select>
+
+                <label for="editAssignedTo">Asignado a</label>
+                <input type="text" id="editAssignedTo" />
+
+                <div style="margin-top: 1rem; display:flex; gap:1rem;">
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="button" id="cancelEdit" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/ticket-detail.js"></script>
 </body>
-</html> 
+</html>

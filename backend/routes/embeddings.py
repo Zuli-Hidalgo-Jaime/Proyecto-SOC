@@ -1,55 +1,54 @@
+# backend/routes/embeddings.py
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
-from backend.utils.redis_client import add_embedding, knn_search, get_vector
+
+from backend.embeddings.service import embed_and_store      # 👈
+from backend.utils.redis_client import get_vector, knn_search
 
 router = APIRouter(prefix="/api/embeddings")
 
-# Modelo para guardar embeddings
+# ---------- 1. Modelo de entrada -------------------------------------------------
 class EmbeddingIn(BaseModel):
-    vector: List[float]
+    text: str = Field(..., example="Descripción o contenido")  # requerido
     ticket_id: Optional[int] = None
-    status: Optional[str] = None
+    status: Optional[str] = Field(None, example="Nuevo")
 
+# ---------- 2. Guardar embedding -------------------------------------------------
 @router.post("/{emb_id}", status_code=201)
-def save_embedding(emb_id: str, payload: EmbeddingIn):
+async def save_embedding(emb_id: str, payload: EmbeddingIn):
     """
-    Guarda un embedding en Redis con ID y metadatos opcionales
+    Genera el embedding (Azure OpenAI) y lo guarda en Redis.
     """
-    add_embedding(
-        emb_id,
-        payload.vector,
+    vec = await embed_and_store(
+        key=emb_id,
+        text=payload.text,
         ticket_id=payload.ticket_id or "",
-        status=payload.status or ""
+        status=payload.status or "",
     )
-    return {"msg": "Embedding guardado correctamente", "id": emb_id}
+    return {"vector_len": len(vec), "key": emb_id}
 
-# Modelo para búsqueda KNN
+# ---------- 3. Búsqueda K-NN -----------------------------------------------------
 class SearchIn(BaseModel):
-    vector: List[float]
+    q: str = Field(..., example="texto para buscar")           # texto de consulta
     k: int = 5
     status: Optional[str] = None
 
 @router.post("/_search")
-def search_embeddings(body: SearchIn):
+async def search_embeddings(body: SearchIn):
     """
-    Realiza búsqueda KNN sobre los embeddings almacenados
+    Búsqueda semántica sobre los embeddings almacenados.
     """
-    filters = {}
-    if body.status:
-        filters["status"] = body.status
-
-    hits = knn_search(body.vector, body.k, **filters)
+    filters = {"status": body.status} if body.status else {}
+    hits = await knn_search(body.q, body.k, **filters)
     if not hits:
         raise HTTPException(404, "Sin resultados encontrados")
     return {"matches": hits}
 
+# ---------- 4. Obtener embedding -------------------------------------------------
 @router.get("/{emb_id}")
 def read_embedding(emb_id: str):
-    """
-    Devuelve un embedding almacenado por su ID
-    """
     vec = get_vector(emb_id)
     if vec is None:
         raise HTTPException(404, "Embedding no encontrado")
-    return {"id": emb_id, "vector": vec}
+    return {"id": emb_id, "vector": vec[:10]}  # sólo una muestra

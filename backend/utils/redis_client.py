@@ -7,7 +7,7 @@ from typing import List
 from redisvl.query import VectorQuery
 from redis.commands.search.field import VectorField, TagField
 from redis.exceptions import ResponseError
-from redis.commands.search.index_definition import IndexDefinition
+from redis.commands.search.indexDefinition import IndexDefinition
 
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
@@ -15,6 +15,7 @@ VECTOR_DIM  = 1536         # mismo número que en el índice
 INDEX_NAME  = "embeddings_idx"
 
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=False)
+redis_client = r
 
 # ───────── Crear índice si no existe ─────────
 def _ensure_index():
@@ -46,17 +47,15 @@ _ensure_index()   # ← se ejecuta al importar el módulo
 def _to_float32_bytes(v: List[float]) -> bytes:
     return np.array(v, dtype=np.float32).tobytes()
 
-def add_embedding(key: str, vector: List[float], **meta):
-    """
-    Guarda el vector + metadatos en Redis.
-    :param key: id único (sin 'emb:'; el prefijo se añade aquí)
-    """
-    redis_key = f"emb:{key}"
-    payload = {"vector": _to_float32_bytes(vector)}
-    # añade cualquier metadato
-    for k, v in meta.items():
-        payload[k] = v
-    r.hset(redis_key, mapping=payload)
+def add_embedding(key: str, vector: list[float], **meta):
+    redis_key = f"emb:{key}"          # ← debe ser emb:, no embeddings:
+    redis_client.hset(
+        redis_key,
+        mapping={
+            "vector": _to_float32_bytes(vector),
+            **meta,
+        },
+    )
 
 # Búsqueda #
 
@@ -85,4 +84,4 @@ def get_vector(key: str):
         return None
     return np.frombuffer(raw, dtype=np.float32).tolist()
 
-__all__ = ["add_embedding", "knn_search", "get_vector"]
+__all__ = ["add_embedding", "knn_search", "get_vector", "redis_client"]

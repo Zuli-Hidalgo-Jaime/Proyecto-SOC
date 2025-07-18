@@ -327,3 +327,38 @@ body {
         grid-template-columns: 1fr;
     }
 } 
+
+/* === Badges de estado === */
+.status-badge{
+    padding:0.2rem 0.55rem;
+    border-radius:1rem;
+    font-size:.8rem;
+    font-weight:600;
+    color:#fff;
+}
+.status-abierto   { background:#388e3c; }
+.status-en_proceso{ background:#fbc02d; color:#222; }
+.status-cerrado   { background:#b71c1c; }
+
+/* === Badges de prioridad === */
+.priority-badge{
+    padding:0.2rem 0.55rem;
+    border-radius:1rem;
+    font-size:.8rem;
+    font-weight:600;
+    color:#fff;
+}
+.priority-crítica{ background:#d50000; }
+.priority-alta   { background:#ff6f00; }
+.priority-media  { background:#0288d1; }
+.priority-baja   { background:#388e3c; }
+
+/* === Botones pequeñitos === */
+.btn-sm{
+    font-size:.75rem;
+    padding:.25rem .45rem;
+    margin-right:.2rem;
+}
+
+/* Ajuste extra para tabla */
+.tickets-table td{ vertical-align:middle; }
