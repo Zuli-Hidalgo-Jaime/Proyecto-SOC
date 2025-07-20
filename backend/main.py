@@ -19,6 +19,7 @@ from backend.logging_config import setup_logging
 from backend.auth.basic_auth import verify_basic_auth
 from backend.routes import embeddings
 from backend.routes.search import router as search_router
+from backend.routes.attachments import router as attachments_router
 
 #Frontend
 from fastapi.staticfiles import StaticFiles
@@ -37,9 +38,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
-
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
 
 # Configure CORS
 app.add_middleware(
@@ -55,7 +54,9 @@ app.include_router(tickets.router)  # <--- sin prefix ni tags aquí
 app.include_router(embeddings.router)
 app.include_router(search_router)
 app.include_router(twilio_router)
-app.include_router(audio_router)
+app.include_router(attachments_router)
+
+#app.include_router(audio_router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -94,6 +95,9 @@ async def http_exception_handler(request, exc):
         content={"detail": exc.detail}
     )
 '''
+os.makedirs("./audio_tmp", exist_ok=True)
+app.mount("/audio", StaticFiles(directory="./audio_tmp"), name="audio")
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
