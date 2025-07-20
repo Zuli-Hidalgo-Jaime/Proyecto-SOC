@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProyectoSoc - Gestión de Tickets</title>
+    <title>ProyectoSoc – Gestión de Tickets</title>
+
+    <!-- Tu CSS principal -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <!-- ===== HEADER ===== -->
     <header class="header">
         <div class="container">
             <h1>ProyectoSoc</h1>
@@ -17,8 +20,10 @@
         </div>
     </header>
 
+    <!-- ===== MAIN ===== -->
     <main class="main">
         <div class="container">
+            <!-- Encabezado de página -->
             <div class="page-header">
                 <h2>Lista de Tickets</h2>
                 <button class="btn btn-primary" onclick="window.location.href='create-ticket.html'">
@@ -26,44 +31,47 @@
                 </button>
             </div>
 
+            <!-- Filtros -->
             <div class="filters">
-                <input type="text" id="searchInput" placeholder="Buscar tickets..." class="search-input">
+                <input type="text" id="searchInput" placeholder="Buscar tickets…" class="search-input">
                 <select id="statusFilter" class="filter-select">
-                    <option value="">Todos los estados</option>
-                    <option value="abierto">Abierto</option>
-                    <option value="en_proceso">En Proceso</option>
-                    <option value="cerrado">Cerrado</option>
+                  <option value="">Todos los estados</option>
+                  <option value="Nuevo">Nuevo</option>
+                  <option value="En proceso">En proceso</option>
+                  <option value="Cerrado">Cerrado</option>
                 </select>
             </div>
 
+            <!-- Tabla -->
             <div class="table-container">
                 <table class="tickets-table">
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Folio</th>
                             <th>Título</th>
                             <th>Estado</th>
+                            <th>Prioridad</th>
+                            <th>Asignado a</th>
                             <th>Fecha Creación</th>
-                            <th>Acciones</th>
+                            <th style="width:130px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="ticketsTableBody">
-                        <!-- Tickets se cargan dinámicamente -->
+                        <!-- Se rellena con JS -->
                     </tbody>
                 </table>
             </div>
 
-            <div id="loading" class="loading hidden">
-                Cargando tickets...
-            </div>
-
-            <div id="error" class="error hidden">
-                Error al cargar tickets
-            </div>
+            <!-- Estados de carga / error -->
+            <div id="loading" class="loading hidden">Cargando tickets…</div>
+            <div id="error"   class="error hidden">Error al cargar tickets</div>
         </div>
     </main>
 
+    <!-- ===== SCRIPTS ===== -->
     <script src="js/config.js"></script>
     <script src="js/tickets.js"></script>
 </body>
-</html> 
+</html>
+
