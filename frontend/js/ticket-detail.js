@@ -71,29 +71,39 @@ class TicketDetailManager {
   async loadAttachments() {
     const container = document.getElementById("attachments-list");
     container.innerHTML = ""; // Limpia
-
+  
     try {
-      const response = await fetch(`/api/tickets/${this.ticketId}/attachments`);
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.LIST_ATTACHMENTS(this.ticketId)}`
+      );
       if (!response.ok) throw new Error(await response.text());
-
+  
       const attachments = await response.json();
-
+  
       if (attachments.length === 0) {
         container.innerHTML = "<p>No hay archivos adjuntos</p>";
       } else {
         const list = document.createElement("ul");
         list.classList.add("attachment-list");
-
+  
         attachments.forEach(att => {
           const item = document.createElement("li");
           const link = document.createElement("a");
           link.href = att.url;
           link.target = "_blank";
           link.textContent = `📎 ${att.name}`;
+        
+          const deleteBtn = document.createElement("button");
+          deleteBtn.textContent = "🗑️ Eliminar";
+          deleteBtn.classList.add("btn", "btn-danger", "btn-sm");
+          deleteBtn.style.marginLeft = "1rem";
+          deleteBtn.addEventListener("click", () => this.deleteAttachment(att.id));
+        
           item.appendChild(link);
+          item.appendChild(deleteBtn);
           list.appendChild(item);
         });
-
+  
         container.appendChild(list);
       }
     } catch (err) {
@@ -282,6 +292,24 @@ class TicketDetailManager {
   f(d) {
     return d ? new Date(d).toLocaleString("es-MX") : "";
   }
+
+  async deleteAttachment(attachmentId) {
+    if (!confirm("¿Eliminar este archivo adjunto?")) return;
+  
+    try {
+      const res = await fetch(
+        `/api/tickets/${this.ticketId}/attachments/${attachmentId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error(await res.text());
+      alert("✅ Archivo eliminado correctamente");
+      this.loadAttachments(); // Refrescar lista
+    } catch (err) {
+      console.error("Error eliminando adjunto:", err);
+      alert("❌ No se pudo eliminar el archivo");
+    }
+  }
+
 }
 
 /* init */
