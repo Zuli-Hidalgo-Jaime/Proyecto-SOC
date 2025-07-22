@@ -9,6 +9,15 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <!-- ✅ VERIFICAR TOKEN JWT -->
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // No hay token → redirigir a login
+            window.location.href = 'login.html';
+        }
+    </script>
+
     <!-- ===== HEADER ===== -->
     <header class="header">
         <div class="container">
@@ -74,4 +83,5 @@
     <script src="js/tickets.js"></script>
 </body>
 </html>
+
 

@@ -20,6 +20,7 @@ from backend.auth.basic_auth import verify_basic_auth
 from backend.routes import embeddings
 from backend.routes.search import router as search_router
 from backend.routes.attachments import router as attachments_router
+from backend.auth import jwt_auth
 
 #Frontend
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +56,7 @@ app.include_router(embeddings.router)
 app.include_router(search_router)
 app.include_router(twilio_router)
 app.include_router(attachments_router)
+app.include_router(jwt_auth.router)
 
 #app.include_router(audio_router)
 

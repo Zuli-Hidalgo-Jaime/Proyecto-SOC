@@ -362,3 +362,20 @@ body {
 
 /* Ajuste extra para tabla */
 .tickets-table td{ vertical-align:middle; }
+
+/* 🎨 Estilo para los links de adjuntos */
+.attachment-link {
+    display: inline-block;
+    background-color: #007bff; /* Azul elegante */
+    color: #fff;
+    padding: 6px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.attachment-link:hover {
+    background-color: #0056b3; /* Azul más oscuro al pasar el mouse */
+}

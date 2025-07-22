@@ -10,7 +10,9 @@ const CONFIG = {
       TICKET_BY_ID : id => `/api/tickets/${id}`,
       CREATE_TICKET: "/api/tickets/",
       UPDATE_TICKET: id => `/api/tickets/${id}`,
-      DELETE_TICKET: id => `/api/tickets/${id}`
+      DELETE_TICKET: id => `/api/tickets/${id}`,
+      UPLOAD_ATTACHMENT: (id) => `/api/tickets/${id}/attachments`
+    
     },
   
     STATUS_OPTIONS: { ABIERTO: "Nuevo", EN_PROCESO: "En proceso", CERRADO: "Cerrado" },
