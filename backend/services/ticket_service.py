@@ -3,7 +3,11 @@ from backend.schemas.ticket import TicketCreate
 from backend.routes.tickets import create_ticket
 from backend.embeddings.service import embed_and_store
 from backend.search.service import knn_search
+from backend.database.models import Ticket
 from twilio.rest import Client
+from sqlalchemy.future import select
+from sqlalchemy import func
+
 import os
 import uuid
 import httpx
@@ -47,12 +51,12 @@ async def handle_ticket_query(text: str, phone: str) -> str:
     """
     async for session in get_session():
         results = await knn_search(text, k=1, session=session)
-        # Ajusta el umbral según la calidad de tus embeddings
         if results and results[0]["score"] < 0.30:
             ticket = results[0]["ticket"]
             respuesta = (
                 f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "
-                f"Resumen: {ticket.ShortDescription}."
+                f"Resumen: {ticket.ShortDescription}. "
+                f"Descripción completa: {ticket.Description}."
             )
         else:
             respuesta = (
@@ -61,6 +65,34 @@ async def handle_ticket_query(text: str, phone: str) -> str:
             )
         audio_url = await synthesize_speech(respuesta)
         return audio_url
+
+# -------------------------------------------
+# Búsqueda directa por número de ticket
+# -------------------------------------------
+async def search_ticket_by_number(ticket_number: str) -> dict | None:
+    """
+    Busca un ticket por su número (comparando solo dígitos).
+    """
+    async for session in get_session():
+        # 🔥 Limpiar el número recibido para dejar solo dígitos
+        digits_only = ''.join(filter(str.isdigit, ticket_number))
+
+        # Buscar en DB quitando todo lo que no sea dígito en TicketNumber
+        query = select(Ticket).where(
+            func.regexp_replace(Ticket.TicketNumber, r'\D', '', 'g') == digits_only
+        )
+        result = await session.execute(query)
+        ticket = result.scalar_one_or_none()
+
+        if ticket:
+            return {
+                "TicketNumber": ticket.TicketNumber,
+                "ShortDescription": ticket.ShortDescription,
+                "Description": ticket.Description,  
+                "Status": ticket.Status,
+                "Priority": ticket.Priority
+            }
+    return None
 
 # --- (3) FUNCIÓN PARA SINTETIZAR TEXTO A VOZ (ELEVENLABS) ---
 ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY")
@@ -90,3 +122,4 @@ async def synthesize_speech(text: str) -> str:
     print(f"Audio generado en: {path}")
     print("URL del audio para Twilio:", f"{PUBLIC_BASE_URL}/audio/{filename}")
     return f"{PUBLIC_BASE_URL}/audio/{filename}"
+
