@@ -1,9 +1,11 @@
+#Backend/services/ticket_service.py
 from backend.database.connection import get_session
 from backend.schemas.ticket import TicketCreate
 from backend.routes.tickets import create_ticket
 from backend.embeddings.service import embed_and_store
 from backend.search.service import knn_search
 from backend.database.models import Ticket
+from backend.utils.ticket_to_text import ticket_to_text
 from twilio.rest import Client
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -44,14 +46,21 @@ async def process_voice_ticket(text: str, phone: str):
             print(f"Error enviando SMS: {e}")
 
 # --- (2) FUNCIÓN PARA CONSULTAR TICKET Y GENERAR RESPUESTA DE VOZ ---
+from backend.utils.ticket_to_text import ticket_to_text  # 👈 Agrega esta línea
+
 async def handle_ticket_query(text: str, phone: str) -> str:
     """
     Busca el ticket más similar por embeddings y genera una respuesta en voz con ElevenLabs.
     Retorna la URL del audio para que Twilio la reproduzca.
     """
     async for session in get_session():
+        print("🗣 Texto recibido desde Twilio:", text)  # 👈 PRIMER PRINT
+
         results = await knn_search(text, k=1, session=session)
-        if results and results[0]["score"] < 0.30:
+
+        print("🎯 Resultado de knn_search:", results)    # 👈 SEGUNDO PRINT
+
+        if results and results[0]["score"] < 0.55:  # <-- Puedes probar subirlo aquí
             ticket = results[0]["ticket"]
             respuesta = (
                 f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "
@@ -65,6 +74,7 @@ async def handle_ticket_query(text: str, phone: str) -> str:
             )
         audio_url = await synthesize_speech(respuesta)
         return audio_url
+
 
 # -------------------------------------------
 # Búsqueda directa por número de ticket
