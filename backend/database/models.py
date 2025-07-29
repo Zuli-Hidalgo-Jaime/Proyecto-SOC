@@ -1,3 +1,4 @@
+#backend/database/models.py
 """
 SQLAlchemy models for ticketing system.
 """
@@ -44,7 +45,8 @@ class Attachment(Base):
     filename = Column(String, nullable=False)
     file_url = Column(String, nullable=False)   # URL de Azure Storage
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
-
+    ocr_content = Column(Text)
+    
     # Relación inversa
     ticket = relationship("Ticket", back_populates="attachments")
 

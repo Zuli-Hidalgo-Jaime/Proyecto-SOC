@@ -1,3 +1,4 @@
+#backend/utils/redis_client.py
 """
 Redis helpers: set/get embeddings y KNN search
 """

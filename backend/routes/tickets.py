@@ -107,9 +107,11 @@ async def create_ticket(
 
     # 4️⃣  Opcional: genera embedding
     try:
+        ticket_dict = new_ticket.__dict__.copy()
+        ticket_dict["attachments_ocr"] = []
         await embed_and_store(
             key       = f"ticket:{new_ticket.id}",
-            text      = new_ticket.ShortDescription,
+            ticket    = ticket_dict,
             ticket_id = new_ticket.id,
             status    = new_ticket.Status
         )

@@ -1,20 +1,17 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
-import os
-import uuid
-from datetime import datetime, timedelta
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database.connection import get_session
+#backend/routes/attachments.py
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from backend.database.connection import get_session
-from backend.database.models import Attachment
+from sqlalchemy.future import select
+from sqlalchemy import select as sa_select
+from datetime import datetime, timedelta
 import os
 import uuid
-from datetime import datetime, timedelta
+
+from backend.database.connection import get_session
+from backend.database.models import Attachment, Ticket
+from backend.embeddings.service import embed_and_store
+from backend.utils.ocr import extract_ocr
 
 router = APIRouter(prefix="/api/tickets")
 
@@ -91,10 +88,15 @@ async def list_attachments(ticket_id: int, db: AsyncSession = Depends(get_sessio
 
 @router.post("/{ticket_id}/attachments")
 async def upload_attachment(ticket_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_session)):
-    """
-    Sube el archivo a Azure Blob y registra en la base de datos.
-    """
-    extension = os.path.splitext(file.filename)[1]
+    # --- VALIDACIÓN DE EXTENSIÓN ---
+    allowed_ext = {".png", ".jpg", ".jpeg", ".pdf"}
+    extension = os.path.splitext(file.filename)[1].lower()
+    if extension not in allowed_ext:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Formato no permitido: '{extension}'. Solo se aceptan: PNG, JPG, JPEG, PDF."
+        )
+
     blob_name = f"{ticket_id}/{uuid.uuid4()}{extension}"
 
     try:
@@ -103,25 +105,50 @@ async def upload_attachment(ticket_id: int, file: UploadFile = File(...), db: As
         content = await file.read()
         blob_client.upload_blob(content, overwrite=True)
 
-        # Guarda referencia en DB
+        # Extrae OCR del archivo
+        ocr_text = extract_ocr(content, file.filename)
+
+        # Guarda referencia en DB, incluyendo el texto OCR
         new_attachment = Attachment(
             ticket_id=ticket_id,
             filename=file.filename,
-            file_url=blob_name  # Guardamos solo el blob_name para generar SAS después
+            file_url=blob_name,
+            ocr_content=ocr_text
         )
         db.add(new_attachment)
         await db.commit()
 
+        # --------- REGENERA EMBEDDING ---------
+        result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+        ticket = result.scalar_one_or_none()
+        if ticket:
+            result2 = await db.execute(select(Attachment).where(Attachment.ticket_id == ticket_id))
+            attachments = result2.scalars().all()
+            ocr_texts = [att.ocr_content for att in attachments if att.ocr_content]
+            ticket_dict = ticket.__dict__.copy()
+            ticket_dict["attachments_ocr"] = ocr_texts
+
+            await embed_and_store(
+                key=f"ticket:{ticket.id}",
+                ticket=ticket_dict,
+                ticket_id=ticket.id,
+                status=ticket.Status
+            )
         return {"message": "Archivo subido correctamente", "name": file.filename}
+
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        print("⛔️ Error en upload_attachment:", repr(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error subiendo archivo: {e}")
+
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error subiendo archivo: {e}")
 
 @router.delete("/{ticket_id}/attachments/{attachment_id}")
 async def delete_attachment(ticket_id: int, attachment_id: int, db: AsyncSession = Depends(get_session)):
-    """
-    Elimina un archivo del blob de Azure y de la base de datos.
-    """
     try:
         # Buscar el adjunto en DB
         result = await db.execute(
@@ -142,6 +169,28 @@ async def delete_attachment(ticket_id: int, attachment_id: int, db: AsyncSession
         # Eliminar de DB
         await db.delete(attachment)
         await db.commit()
+
+        # --------- REGENERA EMBEDDING ---------
+        # 1. Obtener el ticket
+        result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+        ticket = result.scalar_one_or_none()
+        if ticket:
+            # 2. Obtener todos los attachments restantes del ticket (con su OCR)
+            result2 = await db.execute(select(Attachment).where(Attachment.ticket_id == ticket_id))
+            attachments = result2.scalars().all()
+            ocr_texts = [att.ocr_content for att in attachments if att.ocr_content]
+
+            # 3. Unir los campos del ticket y todos los OCR para el embedding
+            ticket_dict = ticket.__dict__.copy()
+            ticket_dict["attachments_ocr"] = ocr_texts
+
+            await embed_and_store(
+                key=f"ticket:{ticket.id}",
+                ticket=ticket_dict,
+                ticket_id=ticket.id,
+                status=ticket.Status
+            )
+        # --------------------------------------
 
         return {"message": "Archivo eliminado correctamente"}
     except Exception as e:

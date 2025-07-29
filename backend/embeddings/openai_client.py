@@ -10,4 +10,4 @@ client = AsyncAzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
 )
 
-DEPLOY = os.getenv("AZURE_OPENAI_DEPLOYMENT_EMBEDDINGS")  # Ej: "text-embedding-ada-002"
+DEPLOY = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")  # Ej: "text-embedding-ada-002"

@@ -3,9 +3,9 @@
 def ticket_to_text(ticket: dict) -> str:
     """
     Convierte un ticket en una cadena de texto unificada, incluyendo
-    todos los campos relevantes para el embedding semántico.
+    todos los campos relevantes y el contenido OCR de sus adjuntos (si viene).
     """
-    return (
+    base = (
         f"Número de ticket: {ticket.get('TicketNumber', '')}. "
         f"Título: {ticket.get('ShortDescription', '')}. "
         f"Descripción: {ticket.get('Description', '')}. "
@@ -22,3 +22,21 @@ def ticket_to_text(ticket: dict) -> str:
         f"Empresa: {ticket.get('Company', '')}. "
         f"Folio: {ticket.get('Folio', '')}. "
     ).strip()
+
+    ocr_list = ticket.get("attachments_ocr", [])
+    ocr_text = "\n".join(ocr_list).strip() if ocr_list else ""
+
+    if ocr_text:
+        result = f"{base}\n\nContenido extraído de archivos adjuntos:\n{ocr_text}"
+    else:
+        result = base
+
+    # 👇 Este print te muestra lo que se embebe cada vez:
+    print("\n=============================")
+    print("EMBEDDING DEL TICKET:")
+    print(result)
+    print("=============================\n")
+
+    return result
+
+

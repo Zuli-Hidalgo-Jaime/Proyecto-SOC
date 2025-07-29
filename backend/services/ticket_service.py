@@ -24,14 +24,16 @@ async def process_voice_ticket(text: str, phone: str):
             Status="Nuevo"
         )
         ticket = await create_ticket(payload, session)
-        # Paso 2: Embedding
+        # Paso 2: Embedding (CORREGIDO)
+        ticket_dict = ticket.__dict__.copy()
+        ticket_dict["attachments_ocr"] = []
         await embed_and_store(
             key=f"ticket:{ticket.id}",
-            text=text,
+            ticket=ticket_dict,
             ticket_id=ticket.id,
             status=ticket.Status
         )
-        # Paso 3: SMS (opcional)
+        # Paso 3: SMS (igual que antes)
         TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
         TWILIO_AUTH_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN")
         TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
@@ -44,6 +46,7 @@ async def process_voice_ticket(text: str, phone: str):
             )
         except Exception as e:
             print(f"Error enviando SMS: {e}")
+
 
 # --- (2) FUNCIÓN PARA CONSULTAR TICKET Y GENERAR RESPUESTA DE VOZ ---
 from backend.utils.ticket_to_text import ticket_to_text  # 👈 Agrega esta línea
@@ -60,7 +63,7 @@ async def handle_ticket_query(text: str, phone: str) -> str:
 
         print("🎯 Resultado de knn_search:", results)    # 👈 SEGUNDO PRINT
 
-        if results and results[0]["score"] < 0.55:  # <-- Puedes probar subirlo aquí
+        if results and results[0]["score"] < 0.4:  # <-- Puedes probar subirlo aquí
             ticket = results[0]["ticket"]
             respuesta = (
                 f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "
