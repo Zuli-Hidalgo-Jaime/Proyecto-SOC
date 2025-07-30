@@ -1,3 +1,4 @@
+#backend/embeddings/openai
 import os
 from openai import AsyncAzureOpenAI
 from dotenv import load_dotenv

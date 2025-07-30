@@ -164,4 +164,4 @@ async def delete_ticket(ticket_id: int, session: AsyncSession = Depends(get_sess
 
     await session.delete(db_ticket)
     await session.commit()
-    return  # 204 → sin cuerpo
+    return 

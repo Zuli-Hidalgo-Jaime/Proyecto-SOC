@@ -63,7 +63,7 @@ async def handle_ticket_query(text: str, phone: str) -> str:
 
         print("🎯 Resultado de knn_search:", results)    # 👈 SEGUNDO PRINT
 
-        if results and results[0]["score"] < 0.4:  # <-- Puedes probar subirlo aquí
+        if results and results[0]["score"] < 0.75:  
             ticket = results[0]["ticket"]
             respuesta = (
                 f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "

@@ -1,9 +1,10 @@
+#backen/routes/search
 from typing import Optional
 
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database.connection import get_session   # 💾 inyecta sesión
+from backend.database.connection import get_session   
 from backend.search.service import knn_search
 
 router = APIRouter()
@@ -13,7 +14,7 @@ async def semantic_search(
     q: str = Query(..., min_length=3, description="Texto a buscar"),
     k: int = 5,
     status: Optional[str] = None,
-    session: AsyncSession = Depends(get_session),      # 👈 pasa sesión
+    session: AsyncSession = Depends(get_session),      
 ):
     """
     Embebe *q*, consulta RediSearch y devuelve los *k* vecinos más
