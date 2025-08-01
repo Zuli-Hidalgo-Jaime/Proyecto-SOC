@@ -63,7 +63,7 @@ class TicketDetailManager {
     // 🔥 Cargar adjuntos dinámicamente
     this.show("ticketDetail", true);
     this.loadAttachments();
-
+    this.loadHistory();
     this.show("ticketDetail", true);
   }
 
@@ -310,6 +310,63 @@ class TicketDetailManager {
     }
   }
 
+  
+    /* ---- Cargar y renderizar historial ---- */
+   async loadHistory() {
+     const container = document.getElementById("ticketHistory");
+     container.innerHTML = "Cargando historial...";
+     try {
+       const res = await fetch(
+         `${CONFIG.API_BASE_URL}/api/tickets/${this.ticketId}/history`
+       );
+       if (!res.ok) throw new Error(await res.text());
+       const history = await res.json();
+       if (!history.length) {
+         container.innerHTML = "<i>No hay historial disponible para este ticket.</i>";
+         return;
+       }
+          // 1️⃣ Agrupa por campo
+       const grouped = {};
+       for (const h of history) {
+         if (!grouped[h.field_changed]) grouped[h.field_changed] = [];
+         grouped[h.field_changed].push(h);
+       }
+          // 2️⃣ Renderiza como acordeón por campo
+       container.innerHTML = `
+         <ul style="list-style:none; padding:0; margin:0;">
+         ${Object.entries(grouped).map(([field, changes], idx) => `
+           <li style="margin-bottom:14px;">
+             <button
+               class="btn btn-secondary"
+               style="width:100%; text-align:left; border-radius:6px 6px 0 0; font-weight:600;"
+               onclick="const p=document.getElementById('histField${idx}');p.classList.toggle('hidden');"
+               type="button"
+             >
+               ${field} <span style="font-size:13px; font-weight:400;">(${changes.length} cambio${changes.length > 1 ? 's' : ''})</span>
+             </button>
+             <div id="histField${idx}" class="hidden" style="padding:12px 12px 0 12px; background:#f4f6fb; border-radius:0 0 6px 6px;">
+               <ul style="padding-left:0; list-style:none;">
+               ${changes.map(change => `
+                 <li style="margin-bottom:10px;">
+                   <span style="color:#888; text-decoration:line-through;">"${change.old_value}"</span>
+                   <span style="font-weight:bold; color:#009;">→ "${change.new_value}"</span>
+                   <br>
+                   <span style="font-size:12px; color:#555;">${change.changed_by || "Sistema"} el ${change.changed_at}</span>
+                 </li>
+               `).join("")}
+               </ul>
+             </div>
+           </li>
+         `).join("")}
+         </ul>
+       `;
+     } catch (e) {
+       container.innerHTML = "Error al cargar historial";
+     }
+   }
+  
+  
+  
 }
 
 /* init */

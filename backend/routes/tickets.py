@@ -12,6 +12,8 @@ from backend.database.models import Ticket
 from backend.embeddings.service import embed_and_store
 from backend.schemas.ticket import TicketCreate, TicketUpdate, TicketOut
 from backend.utils.redis_client import redis_client
+from backend.database.models import TicketHistory
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -86,8 +88,8 @@ async def create_ticket(
         CreatedBy        = ticket.created_by,
         Company          = ticket.company,
         ReportedBy       = ticket.reported_by,
-        FirstCategory    = ticket.category,
-        FirstSubcategory = ticket.subcategory,
+        Category    = ticket.category,
+        Subcategory = ticket.subcategory,
         Severity         = ticket.severity,
         Folio            = ticket.folio,
         Description      = ticket.description,
@@ -141,17 +143,25 @@ async def update_ticket(
     if not db_ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
-    # Solo actualizamos campos presentes en el payload
     update_data = payload.dict(exclude_unset=True, by_alias=True)
     for field, value in update_data.items():
+        old_value = getattr(db_ticket, field)
+        if value != old_value:
+            history = TicketHistory(
+                ticket_id = db_ticket.id,
+                field_changed = field,
+                old_value = str(old_value) if old_value is not None else '',
+                new_value = str(value) if value is not None else '',
+                changed_by = "usuario",  
+            )
+            session.add(history)
         setattr(db_ticket, field, value)
 
     await session.commit()
     await session.refresh(db_ticket)
 
-    # --- NUEVO: Regenerar embedding en Redis ---
+    # --- Regenerar embedding en Redis (igual que antes) ---
     try:
-        # Si quieres incluir OCR de attachments, recupéralo igual que en el POST de adjuntos
         result = await session.execute(
             select(Attachment).where(Attachment.ticket_id == ticket_id)
         )
@@ -171,7 +181,6 @@ async def update_ticket(
         logging.warning(f"No se pudo regenerar el embedding en Redis para ticket editado {ticket_id}: {e}")
 
     return db_ticket
-
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
@@ -205,3 +214,25 @@ async def delete_ticket(ticket_id: int, session: AsyncSession = Depends(get_sess
 
     return
 
+# ╔═════════════════════════════════════════════════════════════════════════╗
+# ║ 6. HISTORIAL DE CAMBIOS DE UN TICKET                                  ║
+# ╚═════════════════════════════════════════════════════════════════════════╝
+@router.get(
+    "/{ticket_id}/history",
+    summary="Consultar historial de cambios de un ticket"
+)
+async def get_ticket_history(ticket_id: int, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(TicketHistory).where(TicketHistory.ticket_id == ticket_id).order_by(TicketHistory.changed_at.desc())
+    )
+    history = result.scalars().all()
+    return [
+        {
+            "field_changed": h.field_changed,
+            "old_value": h.old_value,
+            "new_value": h.new_value,
+            "changed_by": h.changed_by,
+            "changed_at": h.changed_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for h in history
+    ]

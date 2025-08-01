@@ -31,7 +31,7 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 # Endpoint de login
-from sqlalchemy.future import select  # 👈 necesario para consultas async
+from sqlalchemy.future import select  
 
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_session)):

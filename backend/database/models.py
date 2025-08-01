@@ -18,8 +18,8 @@ class Ticket(Base):
     CreatedBy = Column(String, nullable=False)
     Company = Column(String)
     ReportedBy = Column(String)
-    FirstCategory = Column(String)
-    FirstSubcategory = Column(String)
+    Category = Column(String)
+    Subcategory = Column(String)
     Severity = Column(String)
     Folio = Column(String)
     Description = Column(Text)
@@ -32,6 +32,7 @@ class Ticket(Base):
     AssignmentGroup = Column(String)
     AssignedTo = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     # Relaciones
     attachments = relationship("Attachment", back_populates="ticket", cascade="all, delete-orphan")
@@ -55,7 +56,7 @@ class Embedding(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    vector = Column(String, nullable=False)   # Puedes guardar como string JSON o bytes si serializas el vector
+    vector = Column(String, nullable=False)   
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relación inversa
@@ -68,3 +69,17 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class TicketHistory(Base):
+    __tablename__ = "ticket_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"))
+    field_changed = Column(String(64))
+    old_value = Column(Text)
+    new_value = Column(Text)
+    changed_by = Column(String(128))
+    changed_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    ticket = relationship("Ticket", backref="history")
+
