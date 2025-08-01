@@ -9,6 +9,8 @@ from backend.utils.ticket_to_text import ticket_to_text
 from twilio.rest import Client
 from sqlalchemy.future import select
 from sqlalchemy import func
+from backend.config.settings import get_settings
+settings = get_settings()
 
 import os
 import uuid
@@ -63,7 +65,7 @@ async def handle_ticket_query(text: str, phone: str) -> str:
 
         print("🎯 Resultado de knn_search:", results)    # 👈 SEGUNDO PRINT
 
-        if results and results[0]["score"] < 0.75:  
+        if results and results[0]["score"] < settings.EMBEDDING_SCORE_THRESHOLD:
             ticket = results[0]["ticket"]
             respuesta = (
                 f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "

@@ -9,11 +9,14 @@ from redisvl.query import VectorQuery
 from redis.commands.search.field import VectorField, TagField
 from redis.exceptions import ResponseError
 from redis.commands.search.indexDefinition import IndexDefinition
+from backend.config.settings import get_settings
+settings = get_settings()
 
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-VECTOR_DIM  = 1536         # mismo número que en el índice
-INDEX_NAME  = "embeddings_idx"
+REDIS_HOST = settings.REDIS_HOST
+REDIS_PORT = settings.REDIS_PORT
+INDEX_NAME = settings.REDIS_INDEX_NAME
+VECTOR_DIM = 1536
+
 
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=False)
 redis_client = r

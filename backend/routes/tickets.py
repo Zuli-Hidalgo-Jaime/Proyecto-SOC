@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from backend.database.models import Attachment
 from backend.auth.basic_auth import verify_basic_auth
 from backend.database.connection import get_session
 from backend.database.models import Ticket
 from backend.embeddings.service import embed_and_store
 from backend.schemas.ticket import TicketCreate, TicketUpdate, TicketOut
-
+from backend.utils.redis_client import redis_client
 import logging
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,8 @@ async def create_ticket(
 # ╔═════════════════════════════════════════════════════════════════════════╗
 # ║ 4. ACTUALIZAR TICKET                                                   ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
+from backend.embeddings.service import embed_and_store
+
 @router.put(
     "/{ticket_id}",
     response_model=TicketOut,
@@ -138,20 +141,48 @@ async def update_ticket(
     if not db_ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
-    # Sólo actualizamos campos presentes en el payload
+    # Solo actualizamos campos presentes en el payload
     update_data = payload.dict(exclude_unset=True, by_alias=True)
     for field, value in update_data.items():
-        # Asegúrate de que el nombre exista en el modelo SQLAlchemy
         setattr(db_ticket, field, value)
 
     await session.commit()
     await session.refresh(db_ticket)
+
+    # --- NUEVO: Regenerar embedding en Redis ---
+    try:
+        # Si quieres incluir OCR de attachments, recupéralo igual que en el POST de adjuntos
+        result = await session.execute(
+            select(Attachment).where(Attachment.ticket_id == ticket_id)
+        )
+        attachments = result.scalars().all()
+        ocr_texts = [att.ocr_content for att in attachments if att.ocr_content]
+        ticket_dict = db_ticket.__dict__.copy()
+        ticket_dict["attachments_ocr"] = ocr_texts
+
+        await embed_and_store(
+            key=f"ticket:{db_ticket.id}",
+            ticket=ticket_dict,
+            ticket_id=db_ticket.id,
+            status=db_ticket.Status
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"No se pudo regenerar el embedding en Redis para ticket editado {ticket_id}: {e}")
+
     return db_ticket
+
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
 # ║ 5. ELIMINAR TICKET                                                     ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
+@router.delete(
+    "/{ticket_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar ticket"
+)
+
 @router.delete(
     "/{ticket_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -164,4 +195,13 @@ async def delete_ticket(ticket_id: int, session: AsyncSession = Depends(get_sess
 
     await session.delete(db_ticket)
     await session.commit()
-    return 
+
+    # --- ELIMINAR EMBEDDING en Redis ---
+    try:
+        redis_key = f"emb:ticket:{ticket_id}"
+        redis_client.delete(redis_key)
+    except Exception as e:
+        logger.warning(f"No se pudo eliminar el embedding en Redis para {redis_key}: {e}")
+
+    return
+
