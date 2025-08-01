@@ -58,7 +58,7 @@ class TicketDetailManager {
 
     const badge = document.getElementById("ticketStatus");
     badge.textContent = t.Status;
-    badge.className = `status-badge status-${t.Status.toLowerCase()}`;
+    badge.className = `status-badge status-${t.Status.toLowerCase().replace(/\s/g, '_')}`;
 
     // 🔥 Cargar adjuntos dinámicamente
     this.show("ticketDetail", true);
