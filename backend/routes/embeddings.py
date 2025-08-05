@@ -1,20 +1,22 @@
 # backend/routes/embeddings.py
+"""
+Rutas para crear, buscar y consultar embeddings semánticos.
+"""
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-from backend.embeddings.service import embed_and_store      # 👈
+from backend.embeddings.service import embed_and_store
 from backend.utils.redis_client import get_vector, knn_search
 
 router = APIRouter(prefix="/api/embeddings")
 
-# ---------- 1. Modelo de entrada -------------------------------------------------
 class EmbeddingIn(BaseModel):
-    text: str = Field(..., example="Descripción o contenido")  # requerido
+    text: str = Field(..., example="Descripción o contenido")
     ticket_id: Optional[int] = None
     status: Optional[str] = Field(None, example="Nuevo")
 
-# ---------- 2. Guardar embedding -------------------------------------------------
 @router.post("/{emb_id}", status_code=201)
 async def save_embedding(emb_id: str, payload: EmbeddingIn):
     """
@@ -28,9 +30,8 @@ async def save_embedding(emb_id: str, payload: EmbeddingIn):
     )
     return {"vector_len": len(vec), "key": emb_id}
 
-# ---------- 3. Búsqueda K-NN -----------------------------------------------------
 class SearchIn(BaseModel):
-    q: str = Field(..., example="texto para buscar")           # texto de consulta
+    q: str = Field(..., example="texto para buscar")
     k: int = 5
     status: Optional[str] = None
 
@@ -45,10 +46,12 @@ async def search_embeddings(body: SearchIn):
         raise HTTPException(404, "Sin resultados encontrados")
     return {"matches": hits}
 
-# ---------- 4. Obtener embedding -------------------------------------------------
 @router.get("/{emb_id}")
 def read_embedding(emb_id: str):
+    """
+    Devuelve una muestra del vector embedding para inspección/debug.
+    """
     vec = get_vector(emb_id)
     if vec is None:
         raise HTTPException(404, "Embedding no encontrado")
-    return {"id": emb_id, "vector": vec[:10]}  # sólo una muestra
+    return {"id": emb_id, "vector": vec[:10]}

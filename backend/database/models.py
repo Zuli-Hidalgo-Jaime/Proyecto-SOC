@@ -1,6 +1,7 @@
 #backend/database/models.py
 """
-SQLAlchemy models for ticketing system.
+SQLAlchemy models for ProyectoSOC ticketing system.
+Define los modelos de Ticket, Attachment, Embedding, User y TicketHistory.
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
@@ -10,6 +11,9 @@ import datetime
 Base = declarative_base()
 
 class Ticket(Base):
+    """
+    Modelo principal para tickets de soporte.
+    """
     __tablename__ = "tickets"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -34,35 +38,41 @@ class Ticket(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-    # Relaciones
     attachments = relationship("Attachment", back_populates="ticket", cascade="all, delete-orphan")
     embeddings = relationship("Embedding", back_populates="ticket", cascade="all, delete-orphan")
 
 class Attachment(Base):
+    """
+    Modelo para archivos adjuntos relacionados con un ticket.
+    """
     __tablename__ = "attachments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
     filename = Column(String, nullable=False)
-    file_url = Column(String, nullable=False)   # URL de Azure Storage
+    file_url = Column(String, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
     ocr_content = Column(Text)
-    
-    # Relación inversa
+
     ticket = relationship("Ticket", back_populates="attachments")
 
 class Embedding(Base):
+    """
+    Modelo para embeddings vectoriales asociados a un ticket.
+    """
     __tablename__ = "ticket_embeddings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    vector = Column(String, nullable=False)   
+    vector = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    # Relación inversa
     ticket = relationship("Ticket", back_populates="embeddings")
 
 class User(Base):
+    """
+    Modelo para usuarios del sistema.
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -71,6 +81,9 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class TicketHistory(Base):
+    """
+    Modelo de historial de cambios de tickets.
+    """
     __tablename__ = "ticket_history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

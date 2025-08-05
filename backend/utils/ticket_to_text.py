@@ -1,9 +1,11 @@
 # backend/utils/ticket_to_text.py
+"""
+Convert ticket dictionary to unified text for embeddings.
+"""
 
 def ticket_to_text(ticket: dict) -> str:
     """
-    Convierte un ticket en una cadena de texto unificada, incluyendo
-    todos los campos relevantes y el contenido OCR de sus adjuntos (si viene).
+    Converts a ticket into a unified text string, including OCR from attachments.
     """
     base = (
         f"Número de ticket: {ticket.get('TicketNumber', '')}. "
@@ -31,12 +33,12 @@ def ticket_to_text(ticket: dict) -> str:
     else:
         result = base
 
-    # 👇 Este print te muestra lo que se embebe cada vez:
     print("\n=============================")
     print("EMBEDDING DEL TICKET:")
     print(result)
     print("=============================\n")
 
     return result
+
 
 

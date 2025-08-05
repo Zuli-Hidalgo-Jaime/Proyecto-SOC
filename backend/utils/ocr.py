@@ -1,16 +1,19 @@
+"""
+OCR utilities: Extract text from images and PDFs for ticket attachments.
+"""
 import pytesseract
 from PIL import Image
 import pdfplumber
 import io
 
 def extract_text_from_image(file_bytes: bytes) -> str:
-    """Extrae texto de una imagen usando pytesseract."""
+    """Extract text from an image using pytesseract."""
     image = Image.open(io.BytesIO(file_bytes))
-    text = pytesseract.image_to_string(image, lang="spa+eng")  # Puedes cambiar idiomas según necesites
+    text = pytesseract.image_to_string(image, lang="spa+eng")
     return text.strip()
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """Extrae texto de todas las páginas de un PDF usando pdfplumber (con fallback a OCR si es imagen)."""
+    """Extract text from all pages of a PDF using pdfplumber (fallback to OCR if needed)."""
     text = ""
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         for page in pdf.pages:
@@ -22,7 +25,7 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return text.strip()
 
 def extract_ocr(file_bytes: bytes, filename: str) -> str:
-    """Detecta si es imagen o PDF y llama al método correcto."""
+    """Detects if input is image or PDF and calls the right method."""
     ext = filename.lower().split(".")[-1]
     if ext in ("jpg", "jpeg", "png", "bmp", "tiff"):
         return extract_text_from_image(file_bytes)
@@ -30,3 +33,4 @@ def extract_ocr(file_bytes: bytes, filename: str) -> str:
         return extract_text_from_pdf(file_bytes)
     else:
         return ""
+

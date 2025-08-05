@@ -1,4 +1,9 @@
 #backend/embeddings/openai
+"""
+OpenAI Azure Async Client setup.
+Configura el cliente para llamadas embeddings con Azure OpenAI.
+"""
+
 import os
 from openai import AsyncAzureOpenAI
 from dotenv import load_dotenv
@@ -11,4 +16,4 @@ client = AsyncAzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
 )
 
-DEPLOY = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")  # Ej: "text-embedding-ada-002"
+DEPLOY = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")

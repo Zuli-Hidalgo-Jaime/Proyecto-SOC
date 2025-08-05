@@ -1,4 +1,15 @@
 #Backend/services/ticket_service.py
+"""
+Servicios y utilidades para procesamiento de tickets (creación por voz, consulta por embeddings, y síntesis de voz).
+"""
+
+import os
+import uuid
+import httpx
+from sqlalchemy.future import select
+from sqlalchemy import func
+from twilio.rest import Client
+
 from backend.database.connection import get_session
 from backend.schemas.ticket import TicketCreate
 from backend.routes.tickets import create_ticket
@@ -6,18 +17,15 @@ from backend.embeddings.service import embed_and_store
 from backend.search.service import knn_search
 from backend.database.models import Ticket
 from backend.utils.ticket_to_text import ticket_to_text
-from twilio.rest import Client
-from sqlalchemy.future import select
-from sqlalchemy import func
 from backend.config.settings import get_settings
+
 settings = get_settings()
 
-import os
-import uuid
-import httpx
-
-# --- (1) FUNCIÓN PARA CREAR TICKETS POR VOZ (opcional, la puedes comentar si no la usas) ---
+# --- (1) CREAR TICKET POR VOZ ---
 async def process_voice_ticket(text: str, phone: str):
+    """
+    Crea un ticket usando voz (texto recibido y teléfono) y envía confirmación por SMS.
+    """
     async for session in get_session():
         payload = TicketCreate(
             TicketNumber=f"CALL-{phone[-4:]}",
@@ -26,7 +34,7 @@ async def process_voice_ticket(text: str, phone: str):
             Status="Nuevo"
         )
         ticket = await create_ticket(payload, session)
-        # Paso 2: Embedding (CORREGIDO)
+        # Embedding inicial
         ticket_dict = ticket.__dict__.copy()
         ticket_dict["attachments_ocr"] = []
         await embed_and_store(
@@ -35,7 +43,7 @@ async def process_voice_ticket(text: str, phone: str):
             ticket_id=ticket.id,
             status=ticket.Status
         )
-        # Paso 3: SMS (igual que antes)
+        # SMS de confirmación
         TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
         TWILIO_AUTH_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN")
         TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
@@ -49,21 +57,16 @@ async def process_voice_ticket(text: str, phone: str):
         except Exception as e:
             print(f"Error enviando SMS: {e}")
 
-
-# --- (2) FUNCIÓN PARA CONSULTAR TICKET Y GENERAR RESPUESTA DE VOZ ---
-from backend.utils.ticket_to_text import ticket_to_text  # 👈 Agrega esta línea
-
+# --- (2) CONSULTA DE TICKET POR EMBEDDINGS Y RESPUESTA DE VOZ ---
 async def handle_ticket_query(text: str, phone: str) -> str:
     """
-    Busca el ticket más similar por embeddings y genera una respuesta en voz con ElevenLabs.
+    Busca el ticket más similar por embeddings y genera una respuesta en voz.
     Retorna la URL del audio para que Twilio la reproduzca.
     """
     async for session in get_session():
-        print("🗣 Texto recibido desde Twilio:", text)  # 👈 PRIMER PRINT
-
+        print("🗣 Texto recibido desde Twilio:", text)
         results = await knn_search(text, k=1, session=session)
-
-        print("🎯 Resultado de knn_search:", results)    # 👈 SEGUNDO PRINT
+        print("🎯 Resultado de knn_search:", results)
 
         if results and results[0]["score"] < settings.EMBEDDING_SCORE_THRESHOLD:
             ticket = results[0]["ticket"]
@@ -80,19 +83,13 @@ async def handle_ticket_query(text: str, phone: str) -> str:
         audio_url = await synthesize_speech(respuesta)
         return audio_url
 
-
-# -------------------------------------------
-# Búsqueda directa por número de ticket
-# -------------------------------------------
+# --- (3) CONSULTA POR NÚMERO DE TICKET ---
 async def search_ticket_by_number(ticket_number: str) -> dict | None:
     """
-    Busca un ticket por su número (comparando solo dígitos).
+    Busca un ticket por su número, comparando solo los dígitos.
     """
     async for session in get_session():
-        # 🔥 Limpiar el número recibido para dejar solo dígitos
         digits_only = ''.join(filter(str.isdigit, ticket_number))
-
-        # Buscar en DB quitando todo lo que no sea dígito en TicketNumber
         query = select(Ticket).where(
             func.regexp_replace(Ticket.TicketNumber, r'\D', '', 'g') == digits_only
         )
@@ -103,13 +100,13 @@ async def search_ticket_by_number(ticket_number: str) -> dict | None:
             return {
                 "TicketNumber": ticket.TicketNumber,
                 "ShortDescription": ticket.ShortDescription,
-                "Description": ticket.Description,  
+                "Description": ticket.Description,
                 "Status": ticket.Status,
                 "Priority": ticket.Priority
             }
     return None
 
-# --- (3) FUNCIÓN PARA SINTETIZAR TEXTO A VOZ (ELEVENLABS) ---
+# --- (4) SÍNTESIS DE VOZ CON ELEVENLABS ---
 ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
 ELEVEN_API_URL = os.getenv("ELEVENLABS_API_URL", "https://api.elevenlabs.io")
@@ -117,19 +114,24 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL")
 TMP_DIR = os.getenv("TMP_DIR", "./audio_tmp")
 
 async def synthesize_speech(text: str) -> str:
+    """
+    Convierte texto a voz usando ElevenLabs. Devuelve la URL pública del audio generado.
+    """
     url = f"{ELEVEN_API_URL}/v1/text-to-speech/{ELEVEN_VOICE_ID}"
     headers = {
         "xi-api-key": ELEVEN_API_KEY,
         "Content-Type": "application/json",
     }
-    payload = {"text": text, "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
+    payload = {
+        "text": text,
+        "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}
+    }
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
         audio = resp.content
 
     os.makedirs(TMP_DIR, exist_ok=True)
-
     filename = f"{uuid.uuid4()}.mp3"
     path = os.path.join(TMP_DIR, filename)
     with open(path, "wb") as f:
