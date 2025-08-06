@@ -32,14 +32,10 @@ class CreateTicketManager {
         Status          : "Nuevo"
       };
 
-      
       const url = `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CREATE_TICKET}`;
-      const res = await fetch(url, {
+      const res = await fetchWithAuth(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader()
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(await res.text());
@@ -60,4 +56,11 @@ class CreateTicketManager {
   t(id, s){ document.getElementById(id)?.classList.toggle("hidden", !s); }
 }
 
-document.addEventListener("DOMContentLoaded", () => new CreateTicketManager());
+document.addEventListener("DOMContentLoaded", () => {
+  new CreateTicketManager();
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    localStorage.removeItem("token");
+    window.location.href = "login.html";
+  });
+});
+

@@ -13,11 +13,7 @@ class TicketsManager {
     try {
       this.toggle("loading", true);
       const url = `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKETS}`;
-      const res = await fetch(url, {
-        headers: {
-          ...getAuthHeader()  
-        }
-      });
+      const res = await fetchWithAuth(url);  // 👈 Maneja 401 automático
       if (!res.ok) throw new Error(await res.text());
       this.tickets  = await res.json();
       this.filtered = [...this.tickets];
@@ -88,15 +84,22 @@ class TicketsManager {
   html(t){ const div=document.createElement("div"); div.textContent=t; return div.innerHTML; }
 }
 
+// Eliminar ticket usando fetchWithAuth
 async function deleteTicket(id){
   if(!confirm("¿Eliminar ticket?")) return;
-  await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(id)}`,{
-    method:"DELETE",
-    headers: {
-      ...getAuthHeader()  
-    }
+  const res = await fetchWithAuth(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(id)}`,{
+    method:"DELETE"
   });
+  if (!res.ok) throw new Error(await res.text());
   location.reload();
 }
 
-document.addEventListener("DOMContentLoaded", () => new TicketsManager());
+// Manejo de logout en DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+  new TicketsManager();
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    localStorage.removeItem("token");
+    window.location.href = "login.html";
+  });
+});
+
