@@ -1,26 +1,31 @@
-console.log("🎯 login.js cargado correctamente");
 
-document.getElementById('login-form').addEventListener('submit', async (e) => {
+"#frontend/js/login.js"
+document.getElementById("login-form").addEventListener("submit", async function (e) {
     e.preventDefault();
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const errorDiv = document.getElementById("login-error");
+
+    errorDiv.textContent = ""; // Limpia errores anteriores
 
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                username: username,
-                password: password
-            })
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
         });
 
-        if (!response.ok) throw new Error("Credenciales inválidas");
-
-        const data = await response.json();
-        localStorage.setItem('token', data.access_token); // Guarda token
-        window.location.href = 'index.html'; // Redirige al home
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("token", data.access_token); // Guarda el token
+            window.location.href = "/frontend/tickets.html"; // Cambia si tienes otro dashboard
+        } else {
+            errorDiv.textContent = "Credenciales inválidas";
+        }
     } catch (err) {
-        document.getElementById('login-error').textContent = err.message;
+        errorDiv.textContent = "Error de conexión con el servidor";
     }
 });

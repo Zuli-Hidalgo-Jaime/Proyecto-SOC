@@ -13,6 +13,7 @@ from backend.database.connection import get_session
 from backend.embeddings.service import embed_and_store
 from backend.schemas.ticket import TicketCreate, TicketUpdate, TicketOut
 from backend.utils.redis_client import redis_client
+from backend.auth.jwt_auth import get_current_user
 
 import logging
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ async def get_ticket(ticket_id: int, session: AsyncSession = Depends(get_session
 async def create_ticket(
     ticket: TicketCreate,
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Crea un nuevo ticket y genera su embedding.
@@ -122,7 +124,8 @@ async def create_ticket(
 async def update_ticket(
     ticket_id: int,
     payload: TicketUpdate,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),    
 ):
     """
     Actualiza los campos de un ticket y guarda cambios en el historial.
@@ -175,7 +178,11 @@ async def update_ticket(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Eliminar ticket"
 )
-async def delete_ticket(ticket_id: int, session: AsyncSession = Depends(get_session)):
+async def delete_ticket(
+    ticket_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
     """
     Elimina un ticket y su embedding de Redis.
     """

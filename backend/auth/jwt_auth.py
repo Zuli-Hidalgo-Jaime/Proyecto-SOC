@@ -43,17 +43,23 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
     
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
+    access_token = create_access_token(data={"sub": user.username, "role": user.role})
+    return {
+    "access_token": access_token,
+    "token_type": "bearer",
+    "username": user.username,
+    "role": user.role,
+    }
 
 # Proteger rutas
 def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        if username is None:
+        role: str = payload.get("role")
+        if username is None or role is None:
             raise HTTPException(status_code=401, detail="Token inválido")
-        return username
+        return {"username": username, "role": role}
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
+

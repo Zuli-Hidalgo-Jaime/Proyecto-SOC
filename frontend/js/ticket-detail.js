@@ -1,5 +1,7 @@
+// frontend/js/ticket-detail.js
+
 /**
- * Ticket detail – maneja la carga, visualización, cambio de estado y borrado
+ * Ticket detail.js – maneja la carga, visualización, cambio de estado y borrado
  * Requiere los siguientes IDs en el HTML:
  *  'ticketDetail', 'loading', 'error',
  *  'ticketId', 'ticketTitle', 'ticketDescription',
@@ -7,6 +9,8 @@
  *  'ticketCreated', 'ticketUpdated', 'ticketStatus',
  *  y botones opcionales con IDs: 'editTicket', 'changeStatus', 'deleteTicket'
  */
+
+// ⚠️ Necesario: utils.js debe cargarse antes de este archivo en el HTML.
 
 class TicketDetailManager {
   constructor() {
@@ -26,7 +30,8 @@ class TicketDetailManager {
     try {
       this.show("loading", true);
       const res = await fetch(
-        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKET_BY_ID(this.ticketId)}`
+        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKET_BY_ID(this.ticketId)}`,
+        { headers: { ...getAuthHeader() } }
       );
       if (!res.ok) throw new Error(await res.text());
       this.ticket = await res.json();
@@ -71,21 +76,22 @@ class TicketDetailManager {
   async loadAttachments() {
     const container = document.getElementById("attachments-list");
     container.innerHTML = ""; // Limpia
-  
+
     try {
       const response = await fetch(
-        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.LIST_ATTACHMENTS(this.ticketId)}`
+        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.LIST_ATTACHMENTS(this.ticketId)}`,
+        { headers: { ...getAuthHeader() } }
       );
       if (!response.ok) throw new Error(await response.text());
-  
+
       const attachments = await response.json();
-  
+
       if (attachments.length === 0) {
         container.innerHTML = "<p>No hay archivos adjuntos</p>";
       } else {
         const list = document.createElement("ul");
         list.classList.add("attachment-list");
-  
+
         attachments.forEach(att => {
           const item = document.createElement("li");
           const link = document.createElement("a");
@@ -103,7 +109,7 @@ class TicketDetailManager {
           item.appendChild(deleteBtn);
           list.appendChild(item);
         });
-  
+
         container.appendChild(list);
       }
     } catch (err) {
@@ -164,6 +170,7 @@ class TicketDetailManager {
         `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPLOAD_ATTACHMENT(this.ticketId)}`,
         {
           method: "POST",
+          headers: { ...getAuthHeader() }, // ⬅️ importante, solo el JWT aquí
           body: formData
         }
       );
@@ -203,7 +210,10 @@ class TicketDetailManager {
         `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPDATE_TICKET(this.ticketId)}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeader()
+          },
           body: JSON.stringify(body)
         }
       );
@@ -253,7 +263,10 @@ class TicketDetailManager {
         `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPDATE_TICKET(this.ticketId)}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeader()
+          },
           body: JSON.stringify(body)
         }
       );
@@ -274,7 +287,10 @@ class TicketDetailManager {
     try {
       const res = await fetch(
         `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(this.ticketId)}`,
-        { method: "DELETE" }
+        {
+          method: "DELETE",
+          headers: { ...getAuthHeader() }
+        }
       );
       if (!res.ok) throw new Error(await res.text());
       alert("Ticket eliminado");
@@ -299,7 +315,10 @@ class TicketDetailManager {
     try {
       const res = await fetch(
         `/api/tickets/${this.ticketId}/attachments/${attachmentId}`,
-        { method: "DELETE" }
+        {
+          method: "DELETE",
+          headers: { ...getAuthHeader() }
+        }
       );
       if (!res.ok) throw new Error(await res.text());
       alert("✅ Archivo eliminado correctamente");
@@ -310,63 +329,60 @@ class TicketDetailManager {
     }
   }
 
-  
-    /* ---- Cargar y renderizar historial ---- */
-   async loadHistory() {
-     const container = document.getElementById("ticketHistory");
-     container.innerHTML = "Cargando historial...";
-     try {
-       const res = await fetch(
-         `${CONFIG.API_BASE_URL}/api/tickets/${this.ticketId}/history`
-       );
-       if (!res.ok) throw new Error(await res.text());
-       const history = await res.json();
-       if (!history.length) {
-         container.innerHTML = "<i>No hay historial disponible para este ticket.</i>";
-         return;
-       }
-          // 1️⃣ Agrupa por campo
-       const grouped = {};
-       for (const h of history) {
-         if (!grouped[h.field_changed]) grouped[h.field_changed] = [];
-         grouped[h.field_changed].push(h);
-       }
-          // 2️⃣ Renderiza como acordeón por campo
-       container.innerHTML = `
-         <ul style="list-style:none; padding:0; margin:0;">
-         ${Object.entries(grouped).map(([field, changes], idx) => `
-           <li style="margin-bottom:14px;">
-             <button
-               class="btn btn-secondary"
-               style="width:100%; text-align:left; border-radius:6px 6px 0 0; font-weight:600;"
-               onclick="const p=document.getElementById('histField${idx}');p.classList.toggle('hidden');"
-               type="button"
-             >
-               ${field} <span style="font-size:13px; font-weight:400;">(${changes.length} cambio${changes.length > 1 ? 's' : ''})</span>
-             </button>
-             <div id="histField${idx}" class="hidden" style="padding:12px 12px 0 12px; background:#f4f6fb; border-radius:0 0 6px 6px;">
-               <ul style="padding-left:0; list-style:none;">
-               ${changes.map(change => `
-                 <li style="margin-bottom:10px;">
-                   <span style="color:#888; text-decoration:line-through;">"${change.old_value}"</span>
-                   <span style="font-weight:bold; color:#009;">→ "${change.new_value}"</span>
-                   <br>
-                   <span style="font-size:12px; color:#555;">${change.changed_by || "Sistema"} el ${change.changed_at}</span>
-                 </li>
-               `).join("")}
-               </ul>
-             </div>
-           </li>
-         `).join("")}
-         </ul>
-       `;
-     } catch (e) {
-       container.innerHTML = "Error al cargar historial";
-     }
-   }
-  
-  
-  
+  /* ---- Cargar y renderizar historial ---- */
+  async loadHistory() {
+    const container = document.getElementById("ticketHistory");
+    container.innerHTML = "Cargando historial...";
+    try {
+      const res = await fetch(
+        `${CONFIG.API_BASE_URL}/api/tickets/${this.ticketId}/history`,
+        { headers: { ...getAuthHeader() } }
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const history = await res.json();
+      if (!history.length) {
+        container.innerHTML = "<i>No hay historial disponible para este ticket.</i>";
+        return;
+      }
+      // 1️⃣ Agrupa por campo
+      const grouped = {};
+      for (const h of history) {
+        if (!grouped[h.field_changed]) grouped[h.field_changed] = [];
+        grouped[h.field_changed].push(h);
+      }
+      // 2️⃣ Renderiza como acordeón por campo
+      container.innerHTML = `
+        <ul style="list-style:none; padding:0; margin:0;">
+        ${Object.entries(grouped).map(([field, changes], idx) => `
+          <li style="margin-bottom:14px;">
+            <button
+              class="btn btn-secondary"
+              style="width:100%; text-align:left; border-radius:6px 6px 0 0; font-weight:600;"
+              onclick="const p=document.getElementById('histField${idx}');p.classList.toggle('hidden');"
+              type="button"
+            >
+              ${field} <span style="font-size:13px; font-weight:400;">(${changes.length} cambio${changes.length > 1 ? 's' : ''})</span>
+            </button>
+            <div id="histField${idx}" class="hidden" style="padding:12px 12px 0 12px; background:#f4f6fb; border-radius:0 0 6px 6px;">
+              <ul style="padding-left:0; list-style:none;">
+              ${changes.map(change => `
+                <li style="margin-bottom:10px;">
+                  <span style="color:#888; text-decoration:line-through;">"${change.old_value}"</span>
+                  <span style="font-weight:bold; color:#009;">→ "${change.new_value}"</span>
+                  <br>
+                  <span style="font-size:12px; color:#555;">${change.changed_by || "Sistema"} el ${change.changed_at}</span>
+                </li>
+              `).join("")}
+              </ul>
+            </div>
+          </li>
+        `).join("")}
+        </ul>
+      `;
+    } catch (e) {
+      container.innerHTML = "Error al cargar historial";
+    }
+  }
 }
 
 /* init */

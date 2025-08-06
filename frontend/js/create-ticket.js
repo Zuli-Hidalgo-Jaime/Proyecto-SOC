@@ -32,11 +32,15 @@ class CreateTicketManager {
         Status          : "Nuevo"
       };
 
+      
       const url = `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CREATE_TICKET}`;
       const res = await fetch(url, {
-        method : "POST",
-        headers: { "Content-Type": "application/json" },
-        body   : JSON.stringify(body)
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(await res.text());
 

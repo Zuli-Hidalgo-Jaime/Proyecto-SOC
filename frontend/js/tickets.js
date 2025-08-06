@@ -1,4 +1,4 @@
-console.log("CONFIG en tickets.js:", window.CONFIG);   // depuración
+console.log("CONFIG en tickets.js:", window.CONFIG);
 
 class TicketsManager {
   constructor() {
@@ -13,7 +13,11 @@ class TicketsManager {
     try {
       this.toggle("loading", true);
       const url = `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.TICKETS}`;
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: {
+          ...getAuthHeader()  
+        }
+      });
       if (!res.ok) throw new Error(await res.text());
       this.tickets  = await res.json();
       this.filtered = [...this.tickets];
@@ -86,7 +90,12 @@ class TicketsManager {
 
 async function deleteTicket(id){
   if(!confirm("¿Eliminar ticket?")) return;
-  await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(id)}`,{method:"DELETE"});
+  await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.DELETE_TICKET(id)}`,{
+    method:"DELETE",
+    headers: {
+      ...getAuthHeader()  
+    }
+  });
   location.reload();
 }
 

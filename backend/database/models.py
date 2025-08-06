@@ -74,10 +74,10 @@ class User(Base):
     Modelo para usuarios del sistema.
     """
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    role = Column(String, default="agente")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class TicketHistory(Base):
