@@ -21,7 +21,7 @@ document.getElementById("login-form").addEventListener("submit", async function 
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem("token", data.access_token); // Guarda el token
-            window.location.href = "/frontend/tickets.html"; // Cambia si tienes otro dashboard
+            window.location.href = "/frontend/index.html"; // Cambia si tienes otro dashboard
         } else {
             errorDiv.textContent = "Credenciales inválidas";
         }

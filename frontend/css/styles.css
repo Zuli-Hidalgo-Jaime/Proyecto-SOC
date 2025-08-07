@@ -1,4 +1,4 @@
-/* Reset y estilos base */
+/* --- RESET Y BASE --- */
 * {
     margin: 0;
     padding: 0;
@@ -18,7 +18,7 @@ body {
     padding: 32px 24px;
 }
 
-/* Header */
+/* --- HEADER --- */
 .header {
     background: #fff;
     border-bottom: 2px solid #e5e8ef;
@@ -50,7 +50,7 @@ body {
     border-bottom: 2px solid #2c5aa0;
 }
 
-/* Cards y contenedores */
+/* --- CARDS Y CONTENEDORES --- */
 .card, .table-container, .ticket-detail, .ticket-form {
     background: #fff;
     border-radius: 10px;
@@ -59,7 +59,7 @@ body {
     margin-bottom: 32px;
 }
 
-/* Page header */
+/* --- PAGE HEADER --- */
 .page-header {
     display: flex;
     justify-content: space-between;
@@ -72,18 +72,39 @@ body {
     font-weight: 600;
 }
 
-/* Botones */
+/* --- BOTÓN GRANDE AZUL SOLO PARA SALIR (NO USAR EN OTROS LADOS) --- */
+.btn-logout {
+    width: 100%;
+    padding: 1rem;
+    background: #2566c4;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+    margin-top: 8px;
+    box-shadow: 0 1px 6px rgba(44,90,160,0.10);
+    transition: background 0.2s;
+}
+.btn-logout:hover {
+    background: #1e3f6b;
+}
+
+/* --- BOTÓN PEQUEÑO Y NORMAL --- */
 .btn {
-    padding: 12px 28px;
+    padding: 8px 22px;
     border: none;
     border-radius: 6px;
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
-    background: #2c5aa0;
+    background: #2566c4;
     color: #fff;
     transition: background 0.2s;
     box-shadow: 0 1px 4px rgba(44,90,160,0.08);
+    min-width: 70px;
 }
 .btn-secondary {
     background: #e5e8ef;
@@ -102,8 +123,13 @@ body {
 .btn-danger:hover {
     background: #c0392b;
 }
+.btn-sm {
+    font-size:.75rem;
+    padding:.25rem .45rem;
+    margin-right:.2rem;
+}
 
-/* Filtros y búsqueda */
+/* --- FILTROS Y BÚSQUEDA --- */
 .filters {
     display: flex;
     gap: 16px;
@@ -124,7 +150,7 @@ body {
     outline: none;
 }
 
-/* Tabla de tickets */
+/* --- TABLA DE TICKETS --- */
 .table-container {
     padding: 0;
     overflow-x: auto;
@@ -153,8 +179,11 @@ body {
 .tickets-table tr:hover {
     background: #f0f4fa;
 }
+.tickets-table td {
+    vertical-align: middle;
+}
 
-/* Formularios */
+/* --- FORMULARIOS (CREAR/EDITAR) --- */
 .ticket-form {
     max-width: 600px;
     margin: 0 auto 32px auto;
@@ -196,7 +225,7 @@ body {
     margin-top: 24px;
 }
 
-/* Ticket detail */
+/* --- TICKET DETAIL --- */
 .ticket-detail {
     max-width: 800px;
     margin: 0 auto 32px auto;
@@ -254,60 +283,23 @@ body {
     border-radius: 0 0 10px 10px;
 }
 
-/* Loading, error, success states */
-.loading, .error, .success {
-    text-align: center;
-    padding: 32px;
-    border-radius: 10px;
-    font-size: 1.1rem;
+/* --- ADJUNTOS --- */
+.attachment-link {
+    display: inline-block;
+    background-color: #007bff;
+    color: #fff;
+    padding: 6px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background-color 0.2s;
 }
-.loading {
-    background: #e3f0fa;
-    color: #2c5aa0;
-}
-.error {
-    background: #fbeaea;
-    color: #c0392b;
-}
-.success {
-    background: #e3f7e6;
-    color: #1a7f37;
-}
-.hidden {
-    display: none;
+.attachment-link:hover {
+    background-color: #0056b3;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-    .container {
-        padding: 16px 6px;
-    }
-    .card, .table-container, .ticket-detail, .ticket-form {
-        padding: 18px 8px;
-    }
-    .ticket-header, .ticket-content, .ticket-actions {
-        padding: 16px 8px;
-    }
-}
-@media (max-width: 600px) {
-    .page-header {
-        flex-direction: column;
-        gap: 16px;
-        align-items: flex-start;
-    }
-    .filters {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .form-actions, .ticket-actions {
-        flex-direction: column;
-    }
-    .info-grid {
-        grid-template-columns: 1fr;
-    }
-} 
-
-/* === Badges de estado=== */
+/* --- BADGES DE ESTADO --- */
 .status-badge {
     padding: 0.2rem 0.55rem;
     border-radius: 1rem;
@@ -315,7 +307,6 @@ body {
     font-weight: 600;
     display: inline-block;
 }
-
 .status-nuevo {
     background: #e0e7ef;
     color: #222;
@@ -333,8 +324,7 @@ body {
     color: #fff;
 }
 
-
-/* === Badges de prioridad === */
+/* --- BADGES DE PRIORIDAD --- */
 .priority-badge{
     padding:0.2rem 0.55rem;
     border-radius:1rem;
@@ -347,29 +337,112 @@ body {
 .priority-media  { background:#0288d1; }
 .priority-baja   { background:#388e3c; }
 
-/* === Botones pequeñitos === */
-.btn-sm{
-    font-size:.75rem;
-    padding:.25rem .45rem;
-    margin-right:.2rem;
+/* --- LOADING, ERROR, SUCCESS --- */
+.loading, .error, .success {
+    text-align: center;
+    padding: 32px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+}
+.loading { background: #e3f0fa; color: #2c5aa0; }
+.error { background: #fbeaea; color: #c0392b; }
+.success { background: #e3f7e6; color: #1a7f37; }
+.hidden { display: none; }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 900px) {
+    .container { padding: 16px 6px; }
+    .card, .table-container, .ticket-detail, .ticket-form { padding: 18px 8px; }
+    .ticket-header, .ticket-content, .ticket-actions { padding: 16px 8px; }
+}
+@media (max-width: 600px) {
+    .page-header { flex-direction: column; gap: 16px; align-items: flex-start; }
+    .filters { flex-direction: column; align-items: stretch; }
+    .form-actions, .ticket-actions { flex-direction: column; }
+    .info-grid { grid-template-columns: 1fr; }
 }
 
-/* Ajuste extra para tabla */
-.tickets-table td{ vertical-align:middle; }
+/* --- LOGIN Y REGISTRO COMO TARJETA BONITA --- */
+.login-container {
+    max-width: 370px;
+    margin: 60px auto;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 48px rgba(44,90,160,0.12);
+    padding: 2.3rem 2rem 1.6rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
 
-/* 🎨 Estilo para los links de adjuntos */
-.attachment-link {
-    display: inline-block;
-    background-color: #007bff; /* Azul elegante */
-    color: #fff;
-    padding: 6px 12px;
-    margin: 4px 0;
-    border-radius: 4px;
+.login-container h2 {
+    font-size: 2rem;
+    color: #264c77;
+    margin-bottom: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* Inputs dentro de login y registro */
+.login-container .form-input {
+    width: 100%;
+    margin-bottom: 1.1rem;
+    padding: 1rem;
+    border: 1.5px solid #d1d6e0;
+    border-radius: 7px;
+    font-size: 1.15rem;
+    background: #f4f7fd;
+    color: #222;
+    transition: border 0.18s;
+}
+
+.login-container .form-input:focus {
+    border-color: #2466c4;
+    outline: none;
+    background: #fff;
+}
+
+.login-container .btn {
+    width: 100%;
+    padding: 0.92rem;
+    background: #2466c4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 0.6rem;
+    margin-top: 0.3rem;
+    font-size: 1.13rem;
+    transition: background 0.18s;
+    box-shadow: 0 1px 8px rgba(44,102,196,0.10);
+}
+
+.login-container .btn:hover {
+    background: #1b4079;
+}
+
+.login-container a {
+    color: #2466c4;
     text-decoration: none;
-    font-size: 0.9rem;
-    transition: background-color 0.2s ease-in-out;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    display: inline-block;
+    font-size: 1rem;
 }
 
-.attachment-link:hover {
-    background-color: #0056b3; /* Azul más oscuro al pasar el mouse */
+.login-container a:hover {
+    color: #143058;
+    text-decoration: underline;
+}
+
+.login-container .error-msg {
+    color: #d82c2c;
+    margin-bottom: 0.3rem;
+}
+
+.login-container .success-msg {
+    color: #178344;
+    margin-bottom: 0.3rem;
 }

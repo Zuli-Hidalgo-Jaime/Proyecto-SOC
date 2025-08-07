@@ -1,4 +1,4 @@
-#Este es un código obsoleto
+#backend/auth/basic_auth.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets

@@ -1,23 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Iniciar Sesión</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="login-container">
         <h2>Iniciar Sesión</h2>
         <form id="login-form">
-            <input type="text" id="username" placeholder="Usuario" required>
-            <input type="password" id="password" placeholder="Contraseña" required>
-            <button type="submit">Entrar</button>
+            <input type="text" id="username" class="form-input" placeholder="Usuario" required>
+            <input type="password" id="password" class="form-input" placeholder="Contraseña" required>
+            <button type="submit" class="btn">Entrar</button>
         </form>
-        <div id="login-error" style="color:red;"></div>
+        <a href="register.html">¿No tienes cuenta? <b>Regístrate aquí</b></a>
+        <div id="login-error" class="error-msg"></div>
     </div>
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/login.js"></script>
-
 </body>
 </html>
+
