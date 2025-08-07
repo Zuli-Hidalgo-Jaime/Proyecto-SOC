@@ -362,7 +362,7 @@ body {
     .info-grid { grid-template-columns: 1fr; }
 }
 
-/* --- LOGIN Y REGISTRO COMO TARJETA BONITA --- */
+/* --- LOGIN Y REGISTRO  --- */
 .login-container {
     max-width: 370px;
     margin: 60px auto;
