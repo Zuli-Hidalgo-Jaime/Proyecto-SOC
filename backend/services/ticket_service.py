@@ -4,6 +4,7 @@ Servicios y utilidades para procesamiento de tickets (creación por voz, consult
 """
 
 import os
+import re
 import uuid
 import httpx
 from sqlalchemy.future import select
@@ -60,29 +61,51 @@ async def process_voice_ticket(text: str, phone: str):
 # --- (2) CONSULTA DE TICKET POR EMBEDDINGS Y RESPUESTA DE VOZ ---
 async def handle_ticket_query(text: str, phone: str) -> str:
     """
-    Busca el ticket más similar por embeddings y genera una respuesta en voz.
-    Retorna la URL del audio para que Twilio la reproduzca.
+    1) Si detecta un número de ticket/folio en el texto, busca DIRECTO por número.
+    2) Si no hay número, hace KNN (Redis) y arma respuesta.
     """
     async for session in get_session():
-        print("🗣 Texto recibido desde Twilio:", text)
+        LOG = __import__("logging").getLogger("ticket_service")
+        LOG.info(f"[KNN] query='{text}'")
+
+        # -------- 1) Intento directo por NÚMERO --------
+        # Acepta formatos con o sin guiones/espacios: INC 250806204037-95 / INC-25080620403795 / 250806204037-95
+        digits = "".join(re.findall(r"\d", text))
+        if len(digits) >= 6:  # umbral bajo para aceptar números largos
+            direct = await search_ticket_by_number(digits)
+            if direct:
+                status = direct.get("Status") or "sin estatus"
+                short  = direct.get("ShortDescription") or "sin resumen"
+                desc   = direct.get("Description") or "sin descripción"
+                tn     = direct.get("TicketNumber") or digits
+                return (f"Tu ticket {tn} está en estatus {status}. "
+                        f"Resumen: {short}. Descripción: {desc}.")
+
+        # -------- 2) Fallback: KNN por embeddings --------
         results = await knn_search(text, k=1, session=session)
-        print("🎯 Resultado de knn_search:", results)
+        LOG.info(f"[KNN] top={results[0]['ticket'].id if results else None} "
+                 f"score={results[0]['score'] if results else None} "
+                 f"threshold={settings.EMBEDDING_SCORE_THRESHOLD}")
 
-        if results and results[0]["score"] < settings.EMBEDDING_SCORE_THRESHOLD:
-            ticket = results[0]["ticket"]
-            respuesta = (
-                f"Tu ticket {ticket.TicketNumber} está en estatus {ticket.Status}. "
-                f"Resumen: {ticket.ShortDescription}. "
-                f"Descripción completa: {ticket.Description}."
-            )
-        else:
-            respuesta = (
-                "No encontramos tickets relacionados con tu solicitud. "
-                "Por favor verifica el número de ticket o proporciona más detalles."
-            )
-        audio_url = await synthesize_speech(respuesta)
-        return audio_url
+        if not results:
+            return ("No encontramos tickets relacionados con tu solicitud. "
+                    "Por favor verifica el número de ticket o proporciona más detalles.")
 
+        best = results[0]
+        score = float(best["score"])
+        ticket = best["ticket"]
+
+        # Acepta si pasa umbral o si es razonable (<0.60) como fallback
+        if score < settings.EMBEDDING_SCORE_THRESHOLD or score < 0.60:
+            desc = ticket.Description or "sin descripción"
+            short = ticket.ShortDescription or "sin resumen"
+            status = ticket.Status or "sin estatus"
+            return (f"Tu ticket {ticket.TicketNumber} está en estatus {status}. "
+                    f"Resumen: {short}. Descripción: {desc}.")
+
+        return ("No encontramos tickets suficientemente relacionados con tu solicitud. "
+                "Por favor verifica el número de ticket o proporciona más detalles.")
+    
 # --- (3) CONSULTA POR NÚMERO DE TICKET ---
 async def search_ticket_by_number(ticket_number: str) -> dict | None:
     """
