@@ -32,12 +32,13 @@ def align_frames(b: bytes, width=FRAME_WIDTH, ch=CHANNELS) -> bytes:
     rem = len(b) % fs
     return b if rem == 0 else b + b"\x00" * (fs - rem)
 
-def ulaw_8k_to_pcm16_16k(ulaw_b64: str) -> bytes:
-    """Twilio (μ-law 8k) -> PCM16 16k para ElevenLabs."""
+def ulaw_8k_to_pcm16_8k(ulaw_b64: str) -> bytes:
+    """Twilio (μ-law 8k) -> PCM16 8k para ElevenLabs (sin resampleo)."""
     ulaw_bytes = base64.b64decode(ulaw_b64)
+    # μ-law (1 byte) -> PCM16 (2 bytes), 8 kHz, mono
     pcm16_8k = audioop.ulaw2lin(align_frames(ulaw_bytes, 1, 1), 2)
-    pcm16_16k, _ = audioop.ratecv(align_frames(pcm16_8k, 2, 1), 2, 1, 8000, 16000, None)
-    return pcm16_16k
+    return pcm16_8k
+
 
 async def _silence_timer(wait_ms: int, cb):
     try:
@@ -47,20 +48,8 @@ async def _silence_timer(wait_ms: int, cb):
         pass
 
 def el_audio_to_ulaw8k(audio_b64: str) -> bytes:
-    """
-    Convierte audio PCM16 16k → μ-law 8k. Si ya fuera μ-law, regresa los bytes crudos.
-    """
-    raw = base64.b64decode(audio_b64)
-    try:
-        if len(raw) % 2 == 0:
-            pcm16_16k = align_frames(raw, 2, 1)
-            pcm16_8k, _ = audioop.ratecv(pcm16_16k, 2, 1, 16000, 8000, None)
-            ulaw = audioop.lin2ulaw(align_frames(pcm16_8k, 2, 1), 2)
-            return ulaw
-    except Exception:
-        pass
-    return raw
-
+    # ElevenLabs ya entrega μ-law 8000 Hz
+    return base64.b64decode(audio_b64)
 
 # -------- relay principal: SOLO streaming RT con start/end de habla + tools --------
 async def relay_twilio(ws_twilio: WebSocket, tools: Optional[List[Dict]] = None):
@@ -212,10 +201,10 @@ async def relay_twilio(ws_twilio: WebSocket, tools: Optional[List[Dict]] = None)
 
                     elif ev == "media":
                         await start_user_audio()
-                        pcm16_16k = ulaw_8k_to_pcm16_16k(frame["media"]["payload"])
+                        pcm16_8k = ulaw_8k_to_pcm16_8k(frame["media"]["payload"])
                         await ws_11.send(json.dumps({
                             "type": "user_audio_chunk",
-                            "user_audio_chunk": base64.b64encode(pcm16_16k).decode()
+                            "user_audio_chunk": base64.b64encode(pcm16_8k).decode()
                         }))
                         reset_silence_timer()
 
