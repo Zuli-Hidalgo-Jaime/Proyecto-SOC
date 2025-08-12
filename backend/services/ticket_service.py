@@ -26,7 +26,7 @@ from backend.routes.tickets import create_ticket
 from backend.embeddings.service import embed_and_store
 from backend.search.service import knn_search
 from backend.database.models import Ticket
-from backend.utils.ticket_to_text import ticket_to_text
+from backend.utils.ticket_to_text import ticket_to_text  # (usado para embeddings)
 from backend.config.settings import get_settings
 
 settings = get_settings()
@@ -57,44 +57,80 @@ FIELD_LABELS = {
 # tokens de lenguaje natural → nombre de campo en DB
 FIELD_MAP = {
     # número
-    "numero": "TicketNumber", "número": "TicketNumber", "ticket": "TicketNumber", "folio": "Folio",
+    "numero": "TicketNumber",
+    "número": "TicketNumber",
+    "ticket": "TicketNumber",
+    "folio": "Folio",
     # estado
-    "estado": "Status", "estatus": "Status", "status": "Status",
+    "estado": "Status",
+    "estatus": "Status",
+    "status": "Status",
     # resumen / título
-    "resumen": "ShortDescription", "titulo": "ShortDescription", "título": "ShortDescription",
-    "descripcion corta": "ShortDescription", "descripción corta": "ShortDescription",
+    "resumen": "ShortDescription",
+    "titulo": "ShortDescription",
+    "título": "ShortDescription",
+    "descripcion corta": "ShortDescription",
+    "descripción corta": "ShortDescription",
     # descripción
-    "descripcion": "Description", "descripción": "Description", "detalle": "Description", "detalles": "Description",
+    "descripcion": "Description",
+    "descripción": "Description",
+    "detalle": "Description",
+    "detalles": "Description",
     # otros
-    "prioridad": "Priority", "impacto": "Impact", "urgencia": "Urgency", "severidad": "Severity",
-    "categoria": "Category", "categoría": "Category", "subcategoria": "Subcategory", "subcategoría": "Subcategory",
-    "grupo": "AssignmentGroup", "asignado": "AssignmentGroup",
-    "responsable": "AssignedTo", "empresa": "Company", "canal": "Channel",
+    "prioridad": "Priority",
+    "impacto": "Impact",
+    "urgencia": "Urgency",
+    "severidad": "Severity",
+    "categoria": "Category",
+    "categoría": "Category",
+    "subcategoria": "Subcategory",
+    "subcategoría": "Subcategory",
+    "grupo": "AssignmentGroup",
+    "asignado": "AssignmentGroup",
+    "responsable": "AssignedTo",
+    "empresa": "Company",
+    "canal": "Channel",
 }
 
-DEFAULT_FIELDS = ["Status", "ShortDescription", "Description"]  # mínimo si no pide algo específico
+DEFAULT_FIELDS = ["Status", "ShortDescription", "Description"]
 ALL_FIELDS_ORDER = [
     "TicketNumber",
-    "Status", "ShortDescription", "Description",
-    "Priority", "Impact", "Urgency", "Severity",
-    "Category", "Subcategory",
-    "AssignmentGroup", "AssignedTo",
-    "Company", "Channel", "Folio",
+    "Status",
+    "ShortDescription",
+    "Description",
+    "Priority",
+    "Impact",
+    "Urgency",
+    "Severity",
+    "Category",
+    "Subcategory",
+    "AssignmentGroup",
+    "AssignedTo",
+    "Company",
+    "Channel",
+    "Folio",
 ]
 
+
 def _norm(s: str) -> str:
+    """
+    Normaliza texto: minúsculas, elimina acentos, limpia caracteres y colapsa espacios.
+    """
     t = s.lower()
     t = unicodedata.normalize("NFD", t)
     t = "".join(c for c in t if unicodedata.category(c) != "Mn")
     t = re.sub(r"[^a-z0-9ñ\s#-]", " ", t)
     return re.sub(r"\s+", " ", t).strip()
 
+
 def parse_requested_fields(text: str) -> Optional[List[str]]:
     """
-    Devuelve lista de campos solicitados o:
-      - ['__ALL__']  si pide TODO
-      - None         si no detecta campos explícitos (usaremos DEFAULT_FIELDS)
-    Reconoce “solo/únicamente …” para limitar la respuesta estrictamente.
+    Detecta los campos solicitados en lenguaje natural.
+
+    Returns:
+        - ['__ALL__'] si pide TODO
+        - None si no detecta campos explícitos (usaremos DEFAULT_FIELDS)
+        - Lista de campos específicos si los menciona
     """
     t = _norm(text)
 
@@ -102,7 +138,7 @@ def parse_requested_fields(text: str) -> Optional[List[str]]:
     if re.search(
         r"\b("
         r"todo|toda\s+la\s+info(?:rmaci[oó]n)?|"
-        r"info(?:rmaci[oó]n)?\s+complet[ao]s?|"      # "información completa"
+        r"info(?:rmaci[oó]n)?\s+complet[ao]s?|"
         r"detalles?\s+complet[ao]s?|"
         r"todos?\s+los?\s+detalles?|"
         r"todos?\s+los?\s+campos?|"
@@ -110,18 +146,23 @@ def parse_requested_fields(text: str) -> Optional[List[str]]:
         r"todo\s+el\s+detalle|"
         r"todo\s+por\s+favor"
         r")\b",
-        t
+        t,
     ):
         return ["__ALL__"]
 
     found: List[str] = []
-    only = bool(re.search(r"\b(solo|solamente|unicamente|únicamente|nada mas|nada más|solo el|solo la)\b", t))
+    only = bool(
+        re.search(
+            r"\b(solo|solamente|unicamente|únicamente|nada mas|nada más|solo el|solo la)\b", t
+        )
+    )
 
     # multi-palabra primero (ej. "descripcion corta")
     for token, field in FIELD_MAP.items():
         if " " in token and re.search(rf"\b{re.escape(token)}\b", t):
             if field not in found:
                 found.append(field)
+
     # luego tokens simples
     for token, field in FIELD_MAP.items():
         if " " in token:
@@ -131,9 +172,10 @@ def parse_requested_fields(text: str) -> Optional[List[str]]:
                 found.append(field)
 
     if found:
-        return found if only else found  # si dijo “solo…”, igual devolvemos lo detectado
+        return found if only else found
 
     return None
+
 
 def format_ticket_reply(ticket_obj, fields: Optional[List[str]]) -> str:
     """
@@ -164,6 +206,7 @@ def format_ticket_reply(ticket_obj, fields: Optional[List[str]]) -> str:
 
     return " ".join(parts)
 
+
 # ==========================
 # (1) CREAR TICKET POR VOZ
 # ==========================
@@ -177,7 +220,7 @@ async def process_voice_ticket(text: str, phone: str):
             TicketNumber=f"CALL-{phone[-4:]}",
             ShortDescription=text[:80],
             CreatedBy="IVR",
-            Status="Nuevo"
+            Status="Nuevo",
         )
         ticket = await create_ticket(payload, session)
 
@@ -188,22 +231,23 @@ async def process_voice_ticket(text: str, phone: str):
             key=f"ticket:{ticket.id}",
             ticket=ticket_dict,
             ticket_id=ticket.id,
-            status=ticket.Status
+            status=ticket.Status,
         )
 
         # SMS de confirmación
-        TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-        TWILIO_AUTH_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN")
-        TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
+        tw_sid = os.getenv("TWILIO_ACCOUNT_SID")
+        tw_token = os.getenv("TWILIO_AUTH_TOKEN")
+        tw_from = os.getenv("TWILIO_FROM_NUMBER")
         try:
-            twilio = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+            twilio = Client(tw_sid, tw_token)
             twilio.messages.create(
                 to=phone,
-                from_=TWILIO_FROM_NUMBER,
-                body=f"Ticket {ticket.TicketNumber} creado. ¡Gracias por usar nuestro sistema de soporte!"
+                from_=tw_from,
+                body=f"Ticket {ticket.TicketNumber} creado. ¡Gracias por usar nuestro sistema de soporte!",
             )
         except Exception as e:
-            LOG.warning(f"Error enviando SMS: {e}")
+            LOG.warning("Error enviando SMS: %s", e)
+
 
 # ==================================================
 # (2) CONSULTA: NÚMERO directo o KNN + campos pedidos
@@ -213,18 +257,16 @@ async def handle_ticket_query(text: str, phone: str) -> str:
     """
     1) Si detecta un número de ticket/folio en el texto, busca DIRECTO por número.
     2) Si no hay número, hace KNN (Redis) y arma respuesta.
-    3) La respuesta se limita a los campos pedidos por el usuario; por defecto Status+ShortDescription+Description.
+    3) Limita la respuesta a los campos pedidos por el usuario; por defecto Status+ShortDescription+Description.
     4) Si el usuario pide “todo” -> devuelve todos los parámetros conocidos.
     """
     LOG.warning("🆕 handle_ticket_query v2 activo")
-    LOG.warning(f"[ECHO] text='{text}'")
+    LOG.warning("[ECHO] text='%s'", text)
 
     async for session in get_session():
-        LOG.info(f"[KNN] query='{text}'")
+        LOG.info("[KNN] query='%s'", text)
         requested = parse_requested_fields(text)
-        LOG.warning(f"[FIELDS] requested={requested}")
-
-        LOG.info(f"[FIELDS] requested={requested}")
+        LOG.warning("[FIELDS] requested=%s", requested)
 
         # -------- 1) Intento directo por NÚMERO --------
         # Acepta formatos con o sin guiones/espacios: INC 250806204037-95 / INC-25080620403795 / 250806204037-95
@@ -237,24 +279,31 @@ async def handle_ticket_query(text: str, phone: str) -> str:
 
         # -------- 2) Fallback: KNN por embeddings --------
         results = await knn_search(text, k=1, session=session)
-        LOG.info(f"[KNN] top={results[0]['ticket'].id if results else None} "
-                 f"score={results[0]['score'] if results else None} "
-                 f"threshold={settings.EMBEDDING_SCORE_THRESHOLD}")
+        LOG.info(
+            "[KNN] top=%s score=%s threshold=%s",
+            results[0]["ticket"].id if results else None,
+            results[0]["score"] if results else None,
+            settings.EMBEDDING_SCORE_THRESHOLD,
+        )
 
         if not results:
-            return ("No encontramos tickets relacionados con tu solicitud. "
-                    "Por favor verifica el número de ticket o proporciona más detalles.")
+            return (
+                "No encontramos tickets relacionados con tu solicitud. "
+                "Por favor verifica el número de ticket o proporciona más detalles."
+            )
 
         best = results[0]
         score = float(best["score"])
         ticket = best["ticket"]
 
-        # Acepta si pasa umbral o si es razonable (<0.60) como fallback
         if score < settings.EMBEDDING_SCORE_THRESHOLD or score < 0.60:
             return format_ticket_reply(ticket, requested)
 
-        return ("No encontramos tickets suficientemente relacionados con tu solicitud. "
-                "Por favor verifica el número de ticket o proporciona más detalles.")
+        return (
+            "No encontramos tickets suficientemente relacionados con tu solicitud. "
+            "Por favor verifica el número de ticket o proporciona más detalles."
+        )
+
 
 # ===================================
 # (3) CONSULTA POR NÚMERO DE TICKET
@@ -263,12 +312,12 @@ async def handle_ticket_query(text: str, phone: str) -> str:
 async def search_ticket_by_number(ticket_number: str) -> Optional[dict]:
     """
     Busca un ticket por su número, comparando solo los dígitos.
-    Devuelve un dict con la mayor cantidad de campos útiles para "información completa".
+    Devuelve un dict con la mayor cantidad de campos útiles para “información completa”.
     """
     async for session in get_session():
-        digits_only = ''.join(filter(str.isdigit, ticket_number))
+        digits_only = "".join(filter(str.isdigit, ticket_number))
         query = select(Ticket).where(
-            func.regexp_replace(Ticket.TicketNumber, r'\D', '', 'g') == digits_only
+            func.regexp_replace(Ticket.TicketNumber, r"\D", "", "g") == digits_only
         )
         result = await session.execute(query)
         ticket = result.scalar_one_or_none()
@@ -293,6 +342,7 @@ async def search_ticket_by_number(ticket_number: str) -> Optional[dict]:
             }
     return None
 
+
 # ===================================
 # (4) SÍNTESIS DE VOZ (no usada en RT)
 # ===================================
@@ -305,18 +355,25 @@ TMP_DIR = os.getenv("TMP_DIR", "./audio_tmp")
 
 async def synthesize_speech(text: str) -> str:
     """
-    Convierte texto a voz usando ElevenLabs. Devuelve la URL pública del audio generado.
-    (En el flujo RT actual no se usa; se mantiene para compatibilidad.)
+    Convierte texto a voz usando ElevenLabs y devuelve la URL pública del audio generado.
+
+    DEPRECATED:
+        Esta función no se utiliza en el flujo de streaming en tiempo real (RT).
+        Se mantiene solo para compatibilidad con integraciones previas.
+
+    Args:
+        text (str): Texto a convertir a voz.
+
+    Returns:
+        str: URL pública del audio generado.
     """
     url = f"{ELEVEN_API_URL}/v1/text-to-speech/{ELEVEN_VOICE_ID}"
-    headers = {
-        "xi-api-key": ELEVEN_API_KEY,
-        "Content-Type": "application/json",
-    }
+    headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
     payload = {
         "text": text,
         "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}
     }
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
