@@ -1,5 +1,9 @@
+# backend/realtime_call/inbound_routes.py
+
 import os
+import re
 import logging
+from urllib.parse import urlparse
 from typing import List, Dict, Any
 
 from fastapi import APIRouter, Request, WebSocket
@@ -15,28 +19,45 @@ from backend.services.ticket_service import (
 log = logging.getLogger("realtime_call.inbound_routes")
 router = APIRouter()
 
+# Preferido: solo host sin esquema (ej. "tuapp.azurewebsites.net")
+PUBLIC_HOST = os.getenv("PUBLIC_HOST", "").strip()
+# Compatibilidad: puede venir completo (https://, wss://, etc.)
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip()
+
+
+def _extract_host(value: str) -> str:
+    """
+    Extrae host[:port] desde una URL o un host plano.
+    Acepta https://, http://, wss://, ws:// y limpia path/query/fragment.
+    """
+    if not value:
+        return ""
+    if re.match(r"^(https?|wss?)://", value, flags=re.I):
+        return urlparse(value).netloc
+    # Si viene plano (foo.ngrok-free.app:1234/path?x=1), corta en el primer separador
+    return re.split(r"[/?#]", value, maxsplit=1)[0]
 
 
 def build_ws_url(request: Request) -> str:
     """
-    Construye la URL WSS pública para el WebSocket de medios, derivada de
-    PUBLIC_BASE_URL (si existe) o del encabezado Host de la solicitud.
-
-    Args:
-        request: Objeto Request de FastAPI.
-
-    Returns:
-        URL WSS absoluta para /websockets/media-stream.
+    Construye la URL WSS pública para el WebSocket de medios.
+    Prioridad:
+      1) PUBLIC_HOST (host limpio, recomendado)
+      2) PUBLIC_BASE_URL (se extrae el host)
+      3) Cabeceras de la solicitud (X-Forwarded-Host / Host)
     """
-    host = PUBLIC_BASE_URL or request.headers.get("host", "")
-    host = (
-        host.replace("https://", "")
-        .replace("http://", "")
-        .replace("wss://", "")
-        .replace("ws://", "")
-    )
-    return f"wss://{host}/websockets/media-stream"
+    host = _extract_host(PUBLIC_HOST) or _extract_host(PUBLIC_BASE_URL)
+
+    if not host:
+        xf_host = request.headers.get("x-forwarded-host") or ""
+        host = _extract_host(xf_host) or _extract_host(request.headers.get("host", ""))
+
+    if not host:
+        # Fallar explícito evita devolver una URL inválida a Twilio
+        raise ValueError("No se pudo determinar el host público para el WebSocket.")
+
+    ws_url = f"wss://{host}/websockets/media-stream"
+    return ws_url
 
 
 TOOLS: List[Dict[str, Any]] = [
@@ -74,12 +95,6 @@ async def voice_incoming(request: Request) -> Response:
     """
     Endpoint principal para Twilio Voice. Genera TwiML con <Connect><Stream>
     (solo track de entrada) hacia el WebSocket de medios.
-
-    Args:
-        request: Solicitud HTTP entrante desde Twilio.
-
-    Returns:
-        Respuesta XML (TwiML) para iniciar el stream WebSocket.
     """
     ws_url = build_ws_url(request)
     log.info("WS URL generado: %s", ws_url)
@@ -94,12 +109,6 @@ async def incoming_compat(request: Request) -> Response:
     """
     Endpoint compatible para integraciones previas. Genera el mismo TwiML que
     /webhooks/twilio/voice/incoming (solo track de entrada).
-
-    Args:
-        request: Solicitud HTTP entrante.
-
-    Returns:
-        Respuesta XML (TwiML) para iniciar el stream WebSocket.
     """
     ws_url = build_ws_url(request)
     log.info("[compat] WS URL generado: %s", ws_url)
@@ -114,9 +123,5 @@ async def media_stream(ws: WebSocket) -> None:
     """
     WebSocket de medios que enlaza el stream de Twilio con ElevenLabs,
     inyectando las herramientas declaradas en TOOLS.
-
-    Args:
-        ws: Conexión WebSocket de FastAPI.
     """
     await relay_twilio(ws, tools=TOOLS)
-

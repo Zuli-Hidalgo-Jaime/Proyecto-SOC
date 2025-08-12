@@ -9,7 +9,7 @@ from backend.embeddings.service import client
 from backend.utils.redis_client import redis_client
 from backend.database.models import Ticket
 
-INDEX = "embeddings_idx"
+INDEX = os.environ["REDIS_INDEX_NAME"]
 DEPLOY = os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"]
 
 def to_binary(vec: List[float]) -> bytes:
