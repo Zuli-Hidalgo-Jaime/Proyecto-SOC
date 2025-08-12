@@ -21,7 +21,9 @@ from backend.routes.attachments import router as attachments_router
 from backend.auth import jwt_auth
 from backend.logging_config import setup_logging
 from backend.auth.basic_auth import verify_basic_auth
-from backend.realtime_call import inbound_routes, outbound_routes  # usan PUBLIC_BASE_URL en import
+from backend.realtime_call import inbound_routes
+from backend.realtime_call import agent_tools
+
 
 # ==== Setup logging (ya con .env cargado) ====
 setup_logging()
@@ -58,7 +60,7 @@ app.include_router(twilio_router)
 app.include_router(attachments_router)
 app.include_router(jwt_auth.router)
 app.include_router(inbound_routes.router)
-app.include_router(outbound_routes.router)
+app.include_router(agent_tools.router)
 
 # ==== Lifecycle Events ====
 @app.on_event("startup")

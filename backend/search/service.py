@@ -29,7 +29,7 @@ async def knn_search(
     resp = await client.embeddings.create(model=DEPLOY, input=text)
     qvec = resp.data[0].embedding
 
-    filter_str = " ".join(f"@{k}:{{{v}}}" for k, v in filters.items()) or "*"
+    filter_str = " ".join(f"@{fk}:{{{fv}}}" for fk, fv in filters.items()) or "*"
     query_str = f"{filter_str}=>[KNN {k} @vector $V AS score]"
 
     params = {"V": to_binary(qvec)}

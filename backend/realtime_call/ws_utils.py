@@ -1,28 +1,31 @@
+# backend/realtime_call/ws_utils.py
 import os
 import asyncio
 import json
 import base64
 import audioop
 import logging
-import unicodedata
 import websockets
-import re
-from enum import Enum
+import contextlib
+import inspect
+from textwrap import dedent
 from asyncio import Queue
+from typing import List, Dict, Optional, Callable
 from fastapi import WebSocket
 
-from backend.services.ticket_service import handle_ticket_query
 from .elevenlabs_client import get_signed_url
 
 LOG = logging.getLogger("realtime_call.ws_utils")
 
-# -------- audio (8 kHz) --------
+# -------- audio (8 kHz μ-law <-> PCM16 16k) --------
 FRAME_WIDTH = 2
 CHANNELS = 1
 ULAW_SR = 8000
 CHUNK_MS = 20.0
 SAMPLES_PER_CHUNK = int(ULAW_SR * (CHUNK_MS / 1000.0))  # 160
-ULAW_CHUNK_SIZE = SAMPLES_PER_CHUNK
+ULAW_CHUNK_SIZE = SAMPLES_PER_CHUNK  # μ-law: 1 byte por muestra @8kHz
+ULAW_SILENCE = bytes([0xFF]) * ULAW_CHUNK_SIZE
+END_UTTERANCE_MS = 1600  # ~1.6 s de inactividad
 
 def align_frames(b: bytes, width=FRAME_WIDTH, ch=CHANNELS) -> bytes:
     fs = width * ch
@@ -30,89 +33,132 @@ def align_frames(b: bytes, width=FRAME_WIDTH, ch=CHANNELS) -> bytes:
     return b if rem == 0 else b + b"\x00" * (fs - rem)
 
 def ulaw_8k_to_pcm16_16k(ulaw_b64: str) -> bytes:
+    """Twilio (μ-law 8k) -> PCM16 16k para ElevenLabs."""
     ulaw_bytes = base64.b64decode(ulaw_b64)
     pcm16_8k = audioop.ulaw2lin(align_frames(ulaw_bytes, 1, 1), 2)
     pcm16_16k, _ = audioop.ratecv(align_frames(pcm16_8k, 2, 1), 2, 1, 8000, 16000, None)
     return pcm16_16k
 
-# -------- modos --------
-class Mode(str, Enum):
-    KNN = "knn"
-    AGENT = "agent"
+async def _silence_timer(wait_ms: int, cb):
+    try:
+        await asyncio.sleep(wait_ms / 1000.0)
+        await cb()
+    except asyncio.CancelledError:
+        pass
 
-def detect_intent(text: str) -> Mode:
-    # normaliza (minúsc, sin acentos, sin rarezas)
-    t = text.lower()
-    t = unicodedata.normalize("NFD", t)
-    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
-    t = re.sub(r"[^a-z0-9ñ\s#-]", " ", t)
-    t = re.sub(r"\s+", " ", t).strip()
+def el_audio_to_ulaw8k(audio_b64: str) -> bytes:
+    """
+    Convierte audio PCM16 16k → μ-law 8k. Si ya fuera μ-law, regresa los bytes crudos.
+    """
+    raw = base64.b64decode(audio_b64)
+    try:
+        if len(raw) % 2 == 0:
+            pcm16_16k = align_frames(raw, 2, 1)
+            pcm16_8k, _ = audioop.ratecv(pcm16_16k, 2, 1, 16000, 8000, None)
+            ulaw = audioop.lin2ulaw(align_frames(pcm16_8k, 2, 1), 2)
+            return ulaw
+    except Exception:
+        pass
+    return raw
 
-    patterns = [
-        r"\b(quiero|quisiera|necesito|me gustaria)\s+(saber|conocer|ver|consultar|revisar)\s+(la\s+)?(informacion|info|el\s+estado|estatus|detalles?)\s+(de|del|sobre)\s+(mi|mis)\s+(tickets?|folios?|incidencias?|casos?)\b",
-        r"\b(informacion|info|estado|estatus|detalles?)\s+(de|del|sobre)\s+(mi|mis)\s+(tickets?|folios?|incidencias?|casos?)\b",
-        r"\b(mi|mis)\s+(ticket|folio|incidencia|caso)s?\s*(#|num|numero|nro)?\s*\d{3,}\b",
-    ]
-    if any(re.search(p, t) for p in patterns):
-        return Mode.KNN
 
-    if "modo tickets" in t or "consulta de tickets" in t:
-        return Mode.KNN
-    if "modo agente" in t or "hablar con el asistente" in t or "copilot" in t:
-        return Mode.AGENT
-
-    return Mode.AGENT
-
-ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
-
-# -------- relay principal --------
-async def relay_twilio(ws_twilio: WebSocket):
-    current_mode: Mode = Mode.AGENT
-    expecting_tts: bool = False
-
+# -------- relay principal: SOLO streaming RT con start/end de habla + tools --------
+async def relay_twilio(ws_twilio: WebSocket, tools: Optional[List[Dict]] = None):
+    """
+    Puente Twilio ↔ ElevenLabs.
+    - Mantiene tu flujo de audio y VAD por tiempo.
+    - Acepta `tools` desde inbound_routes y ejecuta tools locales al recibir `tool_request`.
+    - Alias: 'get_ticket_info' → mapea a handle_ticket_query(query_text -> text).
+    """
     await ws_twilio.accept()
+    LOG.info("✅ Twilio WS aceptado")
+
+    # 1) signed URL NUEVO por llamada
     signed_url = await get_signed_url()
-    LOG.info(f"WS ElevenLabs: {signed_url}")
+    LOG.info("🔗 WS ElevenLabs signed URL obtenido")
 
     async with websockets.connect(signed_url) as ws_11:
-        stream_sid = None
+        stream_sid: Optional[str] = None
+        caller_phone: Optional[str] = None
         out_q: Queue = Queue(maxsize=200)
 
-        # init agent (lee [TTS] literal)
+        # Estado para utterances
+        user_speaking = False
+        silence_task: Optional[asyncio.Task] = None
+
+        # ==== TOOLS MAP (por nombre) ====
+        tool_map: Dict[str, Callable] = {}
+        tool_schema_map: Dict[str, Dict] = {}
+        if tools:
+            for t in tools:
+                name = t["name"]
+                tool_map[name] = t["func"]
+                tool_schema_map[name] = t.get("schema", {}) or {}
+            # alias opcional si tu agente pide 'get_ticket_info'
+            if "handle_ticket_query" in tool_map and "get_ticket_info" not in tool_map:
+                tool_map["get_ticket_info"] = tool_map["handle_ticket_query"]
+                tool_schema_map["get_ticket_info"] = tool_schema_map["handle_ticket_query"]
+
+            # (opcional) enviar definición de tools si tu plan lo soporta
+            try:
+                await ws_11.send(json.dumps({
+                    "type": "session.update",
+                    "tools": [
+                        {
+                            "name": n,
+                            "description": "",
+                            "input_schema": tool_schema_map.get(n) or {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        } for n in tool_map.keys()
+                    ]
+                }))
+                LOG.info("🧰 Tools publicados a ElevenLabs: %s", ", ".join(tool_map.keys()))
+            except Exception as e:
+                LOG.warning("No se pudieron publicar tools (continuamos con prompt/portal): %s", e)
+
+        # 2) Inicializa conversación (tu prompt original)
+        INIT_PROMPT = dedent("""
+        # Política de herramientas (ES)
+        SIEMPRE usa el tool para obtener información de tickets cuando:
+        - El usuario pida “estado/estatus/información de mi ticket”.
+        - El usuario describa un problema (ej.: “mi compu no enciende”, “no puedo entrar a SharePoint”, “tengo un error con Outlook”, “se cayó la VPN”).
+
+        Procedimiento:
+        1) Haz UNA pregunta breve si hace falta: “¿Cuál es tu número de ticket o descríbeme el problema en una frase?”.
+        2) Llama al tool con el texto literal del usuario (no parafrasees ni traduzcas).
+        3) Di en voz alta EXACTAMENTE el texto que regrese el tool.
+        4) Termina con: “¿Te ayudo con algo más?”.
+        """).strip()
+
         init_payload = {
             "type": "conversation_initiation_client_data",
             "conversation_config_override": {
-                "agent": {
-                    "prompt": {
-                        "prompt": (
-                            "Eres un agente de soporte. "
-                            "Si un mensaje del cliente empieza con [TTS], "
-                            "DEBES leer exactamente ese texto y no agregar nada."
-                        )
-                    },
-                    "language": "es"
-                },
-                "tts": ({"voice_id": ELEVEN_VOICE_ID} if ELEVEN_VOICE_ID else {})
+                "agent": {"language": "es", "prompt": {"prompt": INIT_PROMPT}}
             }
         }
         await ws_11.send(json.dumps(init_payload))
+        LOG.info("🟢 Conversación iniciada con ElevenLabs")
 
-        # streamer: Eleven -> Twilio (μ-law 8k) con pacing
+        # 3) ElevenLabs -> Twilio (μ-law 8k con pacing constante)
         async def streamer():
-            nonlocal stream_sid, expecting_tts, current_mode
+            nonlocal stream_sid
             while True:
                 try:
                     ulaw_bytes = await asyncio.wait_for(out_q.get(), timeout=8.0)
-                    had_real = True
                 except asyncio.TimeoutError:
-                    ulaw_bytes = bytes([0xFF]) * ULAW_CHUNK_SIZE
-                    had_real = False
+                    ulaw_bytes = ULAW_SILENCE
 
                 if ulaw_bytes is None:
                     break
 
-                while stream_sid is None:
-                    await asyncio.sleep(0.005)
+                # Nota: Twilio Media Streams son unidireccionales (Twilio -> servidor).
+                # Mandar 'media' de vuelta suele ser ignorado por Twilio.
+                # Dejamos este pacing por si usas algún proxy/puente que lo acepte.
+                if stream_sid is None:
+                    await asyncio.sleep(0.01)
+                    continue
 
                 for i in range(0, len(ulaw_bytes), ULAW_CHUNK_SIZE):
                     chunk = ulaw_bytes[i:i + ULAW_CHUNK_SIZE]
@@ -125,115 +171,160 @@ async def relay_twilio(ws_twilio: WebSocket):
                     }))
                     await asyncio.sleep(CHUNK_MS / 1000.0)
 
-                # cerrar ciclo KNN -> volver a AGENT tras oír el TTS
-                if current_mode == Mode.KNN and expecting_tts and had_real:
-                    expecting_tts = False
-                    current_mode = Mode.AGENT
-                    LOG.info("↩️ back to AGENT")
-
         streamer_task = asyncio.create_task(streamer())
 
-        # Twilio -> Eleven (μ-law 8k -> PCM16 16k)
+        # Helpers para marcar inicios/finales de habla
+        async def start_user_audio():
+            nonlocal user_speaking
+            if not user_speaking:
+                with contextlib.suppress(Exception):
+                    await ws_11.send(json.dumps({"type": "start_of_user_audio"}))
+                user_speaking = True
+                LOG.debug("▶️ start_of_user_audio")
+
+        async def end_user_audio():
+            nonlocal user_speaking
+            if user_speaking:
+                with contextlib.suppress(Exception):
+                    await ws_11.send(json.dumps({"type": "end_of_user_audio"}))
+                user_speaking = False
+                LOG.debug("⏹ end_of_user_audio")
+
+        def reset_silence_timer():
+            nonlocal silence_task
+            if silence_task and not silence_task.done():
+                silence_task.cancel()
+            silence_task = asyncio.create_task(_silence_timer(END_UTTERANCE_MS, end_user_audio))
+
+        # 4) Twilio -> ElevenLabs (μ-law 8k -> PCM16 16k) + capturar caller
         async def twilio_to_11():
-            nonlocal stream_sid, current_mode, expecting_tts
-            while True:
-                frame = json.loads(await ws_twilio.receive_text())
-                ev = frame.get("event")
+            nonlocal stream_sid, caller_phone, silence_task
+            try:
+                while True:
+                    frame = json.loads(await ws_twilio.receive_text())
+                    ev = frame.get("event")
 
-                if ev == "start":
-                    stream_sid = frame["start"]["streamSid"]
-                    LOG.info(f"Twilio SID: {stream_sid}")
+                    if ev == "start":
+                        start_info = frame.get("start") or {}
+                        stream_sid = start_info.get("streamSid")
+                        caller_phone = start_info.get("from") or caller_phone
+                        LOG.info(f"Twilio SID: {stream_sid} | Caller: {caller_phone}")
 
-                elif ev == "media":
-                    pcm16_16k = ulaw_8k_to_pcm16_16k(frame["media"]["payload"])
-                    await ws_11.send(json.dumps({
-                        "type": "user_audio_chunk",
-                        "user_audio_chunk": base64.b64encode(pcm16_16k).decode()
-                    }))
+                    elif ev == "media":
+                        await start_user_audio()
+                        pcm16_16k = ulaw_8k_to_pcm16_16k(frame["media"]["payload"])
+                        await ws_11.send(json.dumps({
+                            "type": "user_audio_chunk",
+                            "user_audio_chunk": base64.b64encode(pcm16_16k).decode()
+                        }))
+                        reset_silence_timer()
 
-                elif ev == "stop":
-                    try:
-                        await ws_11.close()
-                    finally:
+                    elif ev == "stop":
+                        LOG.info("🛑 Twilio stop; cerrando utterance/sesión")
+                        await end_user_audio()
+                        with contextlib.suppress(Exception):
+                            await ws_11.send(json.dumps({"type": "end_of_user_audio"}))
                         break
 
-        # Eleven -> Twilio (transcripts finales + audio)
+            except websockets.ConnectionClosed:
+                LOG.info("🔌 Twilio WS cerrado")
+            except Exception as e:
+                LOG.exception(f"Error en twilio_to_11: {e}")
+
+            if silence_task and not silence_task.done():
+                silence_task.cancel()
+
+        # 5) ElevenLabs -> (audio + eventos) -> Tools/Twilio
         async def eleven_to_twilio():
-            nonlocal current_mode, expecting_tts, stream_sid, out_q
-            while True:
-                raw = await ws_11.recv()
-                try:
-                    msg = json.loads(raw)
-                except Exception:
-                    continue
-
-                mtype = msg.get("type")
-
-                if mtype == "user_transcript":
-                    ev = msg.get("user_transcription_event", {}) or {}
-                    text = (ev.get("user_transcript") or "").strip()
-
-                    # SOLO transcripts finales
-                    if ev.get("is_final") is False:
-                        continue
-                    if not text or len(re.sub(r"[^a-záéíóúñ0-9]", "", text.lower())) < 4:
-                        continue
-
-                    LOG.info(f"[rx] {text}")
-                    new_mode = detect_intent(text)
-                    LOG.info(f"[router] intent={new_mode} (current={current_mode})")
-
-                    if new_mode != current_mode:
-                        current_mode = new_mode
-                        if stream_sid:
-                            await ws_twilio.send_text(json.dumps({
-                                "event": "clear",
-                                "streamSid": stream_sid
-                            }))
-                        # limpiamos cola de salida y bajamos bandera
-                        try:
-                            while not out_q.empty():
-                                out_q.get_nowait()
-                                out_q.task_done()
-                        except Exception:
-                            pass
-                        expecting_tts = False
-
-                    if current_mode == Mode.KNN:
-                        reply = "Ocurrió un error buscando tu ticket. Intenta otra vez."
-                        try:
-                            tmp = await handle_ticket_query(text, phone="")
-                            if isinstance(tmp, str) and tmp.strip():
-                                reply = tmp.strip()
-                        except Exception as e:
-                            LOG.exception(f"[KNN] handle_ticket_query error: {e}")
-
-                        prev = reply.replace("\n", " ")[:120]
-                        LOG.info(f"[KNN->TTS] {prev}{'…' if len(reply) > 120 else ''}")
-
-                        await ws_11.send(json.dumps({
-                            "type": "user_message",
-                            "text": f"[TTS] {reply}"
-                        }))
-                        expecting_tts = True
-
-                elif mtype == "audio":
-                    audio_b64 = (msg.get("audio_event", {}) or {}).get("audio_base_64")
-                    if not audio_b64:
-                        continue
-                    # en KNN, solo dejamos pasar audio si esperamos el TTS
-                    if current_mode == Mode.KNN and not expecting_tts:
-                        continue
+            try:
+                while True:
+                    raw = await ws_11.recv()
+                    # algunos frames pueden ser binarios; intenta JSON
                     try:
-                        await out_q.put(base64.b64decode(audio_b64))
+                        msg = json.loads(raw)
                     except Exception:
-                        pass
+                        continue
+
+                    mtype = msg.get("type")
+
+                    if mtype == "audio":
+                        audio_b64 = (msg.get("audio_event", {}) or {}).get("audio_base_64")
+                        if audio_b64:
+                            try:
+                                ulaw8k = el_audio_to_ulaw8k(audio_b64)
+                                if len(ulaw8k) % ULAW_CHUNK_SIZE != 0:
+                                    pad = ULAW_CHUNK_SIZE - (len(ulaw8k) % ULAW_CHUNK_SIZE)
+                                    ulaw8k += bytes([0xFF]) * pad
+                                await out_q.put(ulaw8k)
+                            except Exception as e:
+                                LOG.debug(f"put audio error: {e}")
+
+                    elif mtype == "user_transcript":
+                        ev = msg.get("user_transcription_event", {}) or {}
+                        if ev.get("is_final"):
+                            LOG.info(f"[11labs] transcript: {ev.get('user_transcript')}")
+
+                    # === NUEVO: ejecución de tools locales ===
+                    elif mtype == "tool_request":
+                        # Estructuras posibles:
+                        # {type:"tool_request", tool_name, call_id/tool_call_id, parameters:{...}}
+                        call_id = msg.get("call_id") or msg.get("tool_call_id")
+                        tool_name = msg.get("tool_name") or (msg.get("tool", {}) or {}).get("name")
+                        params = msg.get("parameters") or msg.get("args") or {}
+
+                        # alias 'get_ticket_info' -> 'handle_ticket_query'
+                        if tool_name == "get_ticket_info" and "handle_ticket_query" in tool_map:
+                            tool_name = "handle_ticket_query"
+                            # mapear query_text -> text si viene así
+                            if isinstance(params, dict) and "query_text" in params and "text" not in params:
+                                params["text"] = params["query_text"]
+
+                        fn = tool_map.get(tool_name)
+                        if not fn:
+                            out_text = f"No se encontró el tool '{tool_name}'."
+                        else:
+                            # inyecta phone si el schema lo contempla
+                            schema_props = (tool_schema_map.get(tool_name) or {}).get("properties", {})
+                            if caller_phone and "phone" in schema_props:
+                                params.setdefault("phone", caller_phone)
+
+                            try:
+                                if inspect.iscoroutinefunction(fn):
+                                    result = await fn(**params)
+                                else:
+                                    result = fn(**params)
+                                out_text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
+                            except Exception as e:
+                                LOG.exception("Error en tool '%s': %s", tool_name, e)
+                                out_text = f"Ocurrió un error al ejecutar {tool_name}."
+
+                        # Responder según el protocolo que estás viendo en logs
+                        resp = {
+                            "type": "tool_response",
+                            "call_id": call_id,
+                            "tool_name": tool_name,
+                            "response": out_text,
+                        }
+                        await ws_11.send(json.dumps(resp))
+                        LOG.info("📤 Tool '%s' ejecutado. call_id=%s", tool_name, call_id)
+
+                    elif mtype in ("tool_response", "tool_error"):
+                        LOG.info(f"[11labs] tool evt: {msg}")
+
+                    elif mtype in ("agent_response", "status_update", "conversation_initiation_metadata"):
+                        LOG.debug(f"[11labs] evt={mtype}")
+
+                    elif mtype == "error":
+                        LOG.error(f"[11labs] error: {msg}")
+
+            except websockets.ConnectionClosed:
+                LOG.info("🔌 WS ElevenLabs cerrado")
+            except Exception as e:
+                LOG.exception(f"Error en eleven_to_twilio: {e}")
 
         try:
             await asyncio.gather(twilio_to_11(), eleven_to_twilio())
         finally:
             await out_q.put(None)
-            try:
+            with contextlib.suppress(Exception):
                 await streamer_task
-            except Exception:
-                pass
